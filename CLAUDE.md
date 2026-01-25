@@ -111,7 +111,7 @@ python3 scripts/init-oauth.py
 
 ## Notes for Development
 
-- Frontend runs on port 3080 (nginx), backend on port 8000
+- Frontend runs on port 4444 (nginx), backend on port 8000
 - PostgreSQL not exposed externally (internal Docker network only)
 - OAuth token refresh is automatic; manual re-auth needed if revoked
 - Scheduler runs in-process with FastAPI (APScheduler)

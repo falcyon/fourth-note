@@ -318,10 +318,10 @@ docker compose logs -f
 
 ### 8. Verify Installation
 
-1. Open browser to `http://<NUC-IP>:3080/`
+1. Open browser to `http://<NUC-IP>:4444/`
 2. Dashboard should load
 3. Click "Fetch Emails" to trigger initial sync
-4. Check `http://<NUC-IP>:3080/api/v1/status` for health status
+4. Check `http://<NUC-IP>:4444/api/v1/status` for health status
 5. Verify PDFs are saved to `/mnt/WD1/fourth-note/data/emails/`
 
 ## Updating Code
@@ -470,6 +470,6 @@ docker stats
 
 ### Health Endpoints
 
-- System status: `http://<NUC-IP>:3080/api/v1/status`
-- Scheduler status: `http://<NUC-IP>:3080/api/v1/scheduler/status`
-- OAuth status: `http://<NUC-IP>:3080/api/v1/oauth/status`
+- System status: `http://<NUC-IP>:4444/api/v1/status`
+- Scheduler status: `http://<NUC-IP>:4444/api/v1/scheduler/status`
+- OAuth status: `http://<NUC-IP>:4444/api/v1/oauth/status`
