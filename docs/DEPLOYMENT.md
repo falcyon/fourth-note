@@ -2,6 +2,186 @@
 
 **Version 1.0.0**
 
+This guide covers two deployment scenarios:
+- [Local Development (Windows 11)](#local-development-windows-11-without-docker) - For testing without Docker
+- [Production (Ubuntu NUC)](#production-deployment-ubuntu-2404-with-docker) - Docker-based deployment
+
+---
+
+# Local Development (Windows 11 without Docker)
+
+## Prerequisites
+
+### Software Requirements
+- **Python 3.11+**: Download from [python.org](https://www.python.org/downloads/)
+- **Node.js 20+**: Download from [nodejs.org](https://nodejs.org/)
+- **PostgreSQL 16**: Download from [postgresql.org](https://www.postgresql.org/download/windows/)
+- **Tesseract OCR**: Download from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki)
+- **Git**: Download from [git-scm.com](https://git-scm.com/download/win)
+
+### Google Cloud Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable the **Gmail API**
+4. Enable the **Generative Language API** (Gemini)
+5. Create OAuth credentials (Desktop application) → Download as `credentials.json`
+6. Create an API key for Gemini → Note the key
+
+## Folder Structure (Windows)
+
+```
+C:\Projects\fourth-note\           # Git repo
+├── backend\
+│   ├── data\                      # Local data directory
+│   │   ├── emails\                # Downloaded PDFs
+│   │   └── token.json             # OAuth token
+│   └── .env                       # Backend environment
+├── frontend\
+├── credentials.json               # Google OAuth credentials
+└── .env.example
+```
+
+## Step-by-Step Setup
+
+### 1. Clone Repository
+
+```powershell
+cd C:\Projects
+git clone https://github.com/USERNAME/fourth-note.git
+cd fourth-note
+```
+
+### 2. Install Tesseract OCR
+
+1. Download installer from [UB Mannheim releases](https://github.com/UB-Mannheim/tesseract/wiki)
+2. Run installer (default path: `C:\Program Files\Tesseract-OCR`)
+3. Add to PATH:
+   - Open System Properties → Environment Variables
+   - Add `C:\Program Files\Tesseract-OCR` to Path
+
+Verify installation:
+```powershell
+tesseract --version
+```
+
+### 3. Setup PostgreSQL
+
+1. Install PostgreSQL 16 with pgAdmin
+2. During install, set a password for the `postgres` user
+3. Open pgAdmin or psql and create database:
+
+```sql
+CREATE DATABASE pitchdeck;
+CREATE USER pitchdeck WITH PASSWORD 'your_local_password';
+GRANT ALL PRIVILEGES ON DATABASE pitchdeck TO pitchdeck;
+ALTER DATABASE pitchdeck OWNER TO pitchdeck;
+```
+
+### 4. Setup Backend
+
+```powershell
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create data directories
+mkdir data\emails
+mkdir data\markdown
+```
+
+Create `backend\.env`:
+```env
+# Database (local PostgreSQL)
+DATABASE_URL=postgresql://pitchdeck:your_local_password@localhost:5432/pitchdeck
+
+# Google APIs
+GOOGLE_API_KEY=your_gemini_api_key
+
+# Paths (Windows local)
+DATA_DIR=./data
+TOKEN_FILE=./data/token.json
+CREDENTIALS_FILE=../credentials.json
+
+# Gmail Configuration
+GMAIL_QUERY_SINCE=1735689600
+
+# Scheduler (set to 0 to disable for local dev)
+SCHEDULER_INTERVAL_HOURS=0
+```
+
+### 5. Gmail OAuth Setup
+
+Place `credentials.json` in project root, then:
+
+```powershell
+# From project root with backend venv activated
+cd ..
+python scripts/init-oauth.py
+```
+
+This opens a browser for Google sign-in. After authorization, `token.json` is saved to `backend\data\token.json`.
+
+### 6. Run Database Migrations
+
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+alembic upgrade head
+```
+
+### 7. Setup Frontend
+
+```powershell
+cd ..\frontend
+
+# Install dependencies
+npm install
+```
+
+### 8. Start Development Servers
+
+**Terminal 1 - Backend:**
+```powershell
+cd backend
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```powershell
+cd frontend
+npm run dev
+```
+
+### 9. Access Application
+
+- **Frontend**: http://localhost:5173 (Vite dev server with hot reload)
+- **Backend API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+
+The Vite dev server proxies `/api` requests to the backend automatically.
+
+## Local Development Commands
+
+| Action | Command |
+|--------|---------|
+| Start backend | `cd backend && .\venv\Scripts\Activate.ps1 && uvicorn app.main:app --reload` |
+| Start frontend | `cd frontend && npm run dev` |
+| Run migrations | `cd backend && alembic upgrade head` |
+| Create migration | `cd backend && alembic revision --autogenerate -m "description"` |
+| Refresh OAuth | `python scripts/init-oauth.py` |
+
+---
+
+# Production Deployment (Ubuntu 24.04 with Docker)
+
 ## Folder Structure
 
 **Ubuntu NUC layout:**
@@ -23,7 +203,7 @@
 ## Prerequisites
 
 ### System Requirements
-- Ubuntu 22.04 LTS or newer
+- Ubuntu 24.04 LTS
 - Minimum 4GB RAM
 - External drive mounted at `/mnt/WD1`
 - Internet access for Gmail API and Gemini API
@@ -72,7 +252,7 @@ cd fourth-note
 
 ```bash
 sudo mkdir -p /mnt/WD1/fourth-note/postgres
-sudo mkdir -p /mnt/WD1/fourth-note/data
+sudo mkdir -p /mnt/WD1/fourth-note/data/emails
 sudo chown -R $USER:$USER /mnt/WD1/fourth-note
 ```
 
@@ -100,6 +280,10 @@ Required environment variables:
 **Important**: This step must be done on the mini PC directly (not via SSH) as it requires a web browser.
 
 ```bash
+# Install Python dependencies first
+pip3 install google-auth-oauthlib
+
+# Run OAuth setup
 python3 scripts/init-oauth.py
 ```
 
@@ -107,7 +291,12 @@ This will:
 1. Open a browser window
 2. Prompt you to sign in to Google
 3. Request permission to read Gmail
-4. Save credentials to `token.json` in the current directory
+4. Save credentials to `backend/data/token.json`
+
+Copy token to project root for Docker:
+```bash
+cp backend/data/token.json ./token.json
+```
 
 ### 7. Start Services
 
