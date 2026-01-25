@@ -473,3 +473,84 @@ docker stats
 - System status: `http://<NUC-IP>:4444/api/v1/status`
 - Scheduler status: `http://<NUC-IP>:4444/api/v1/scheduler/status`
 - OAuth status: `http://<NUC-IP>:4444/api/v1/oauth/status`
+
+---
+
+## Exposing via Cloudflare Tunnel + Nginx
+
+To access Fourth Note via a subdomain (e.g., `fourthwall.leff.in`), configure nginx as a reverse proxy and add the hostname to your Cloudflare tunnel.
+
+### 1. Setup Nginx Site Config
+
+Copy the provided nginx config:
+
+```bash
+sudo cp ~/fourth-note/deploy/fourthwall.leff.in /etc/nginx/sites-available/
+sudo ln -s /etc/nginx/sites-available/fourthwall.leff.in /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Or create manually at `/etc/nginx/sites-available/fourthwall.leff.in`:
+
+```nginx
+server {
+    listen 80;
+    server_name fourthwall.leff.in;
+
+    # Security headers
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-Frame-Options "SAMEORIGIN";
+
+    # Main traffic - proxy to Fourth Note frontend
+    location / {
+        proxy_pass http://127.0.0.1:4444;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts for long-running API requests
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 60s;
+    }
+}
+```
+
+### 2. Add Hostname to Cloudflare Tunnel
+
+Edit your existing tunnel config (e.g., `/etc/cloudflared/jellyfin-tunnel.yml`):
+
+```yaml
+tunnel: <your-tunnel-id>
+credentials-file: /home/falcyon/.cloudflared/<your-tunnel-id>.json
+
+ingress:
+  - hostname: media.leff.in
+    service: http://127.0.0.1:80
+  - hostname: fourthwall.leff.in
+    service: http://127.0.0.1:80
+  - service: http_status:404
+```
+
+Restart cloudflared:
+
+```bash
+sudo systemctl restart cloudflared
+```
+
+### 3. Add DNS Record in Cloudflare
+
+1. Go to Cloudflare Dashboard → DNS
+2. Add a CNAME record:
+   - **Name:** `fourthwall`
+   - **Target:** `<your-tunnel-id>.cfargotunnel.com`
+   - **Proxy status:** Proxied (orange cloud)
+
+### 4. Verify
+
+1. Wait a few minutes for DNS propagation
+2. Visit `https://fourthwall.leff.in`
+3. Dashboard should load with HTTPS (Cloudflare handles SSL)

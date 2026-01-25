@@ -1,0 +1,24 @@
+server {
+    listen 80;
+    server_name fourthwall.leff.in;
+
+    # Security headers
+    add_header X-Content-Type-Options "nosniff";
+    add_header X-Frame-Options "SAMEORIGIN";
+
+    # Main traffic - proxy to Fourth Note frontend
+    location / {
+        proxy_pass http://127.0.0.1:4444;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts for long-running API requests (email fetch, etc.)
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 60s;
+    }
+}
