@@ -49,6 +49,43 @@ class GmailAuthCodeRequest(BaseModel):
     redirect_uri: str
 
 
+# Demo user email - this user is auto-logged in without Google OAuth
+DEMO_USER_EMAIL = "fourthnotetest@gmail.com"
+
+
+@router.post("/demo", response_model=LoginResponse)
+async def demo_login(
+    db: Session = Depends(get_db),
+):
+    """Auto-login as the demo user.
+
+    This endpoint allows automatic login without Google OAuth for demo purposes.
+    The demo user should already exist and have Gmail connected.
+    """
+    auth_service = get_auth_service(db)
+
+    # Find the demo user
+    user = auth_service.get_user_by_email(DEMO_USER_EMAIL)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Demo user ({DEMO_USER_EMAIL}) not found. Please set up the demo account first.",
+        )
+
+    # Create JWT token
+    access_token = auth_service.create_jwt_token(user)
+
+    return LoginResponse(
+        access_token=access_token,
+        user={
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "picture_url": user.picture_url,
+        }
+    )
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login_with_google(
     request: GoogleLoginRequest,

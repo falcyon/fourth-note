@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 
 interface User {
   id: string
@@ -28,7 +28,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load saved auth state on mount
+  // Demo login - auto-login without Google OAuth
+  const demoLogin = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/demo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setToken(data.access_token)
+        setUser(data.user)
+        localStorage.setItem(TOKEN_KEY, data.access_token)
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+      }
+    } catch {
+      // Demo login failed silently
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Load saved auth state on mount, or auto-login as demo user
   useEffect(() => {
     const savedToken = localStorage.getItem(TOKEN_KEY)
     const savedUser = localStorage.getItem(USER_KEY)
@@ -40,9 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Verify token is still valid
       verifyToken(savedToken)
     } else {
-      setIsLoading(false)
+      // No saved token - auto-login as demo user
+      demoLogin()
     }
-  }, [])
+  }, [demoLogin])
 
   const verifyToken = async (accessToken: string) => {
     try {
@@ -56,14 +81,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await response.json()
         setUser(userData)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
+        setIsLoading(false)
       } else {
-        // Token is invalid, clear auth state
-        logout()
+        // Token is invalid - re-login as demo user
+        localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(USER_KEY)
+        await demoLogin()
       }
     } catch {
-      logout()
-    } finally {
-      setIsLoading(false)
+      // Error - re-login as demo user
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+      await demoLogin()
     }
   }
 
@@ -96,10 +125,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    // In demo mode, logout just re-logins as demo user
     setToken(null)
     setUser(null)
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    demoLogin()
   }
 
   const refreshUser = async () => {
