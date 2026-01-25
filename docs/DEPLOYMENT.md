@@ -519,38 +519,77 @@ server {
 }
 ```
 
-### 2. Add Hostname to Cloudflare Tunnel
+### 2. Create a New Cloudflare Tunnel
 
-Edit your existing tunnel config (e.g., `/etc/cloudflared/jellyfin-tunnel.yml`):
+Create a dedicated tunnel for Fourth Note:
+
+```bash
+# Login to Cloudflare (if not already)
+cloudflared tunnel login
+
+# Create new tunnel
+cloudflared tunnel create fourthwall-tunnel
+
+# Note the tunnel ID from output (e.g., abc12345-6789-...)
+```
+
+### 3. Create Tunnel Config
+
+Create `/etc/cloudflared/fourthwall-tunnel.yml`:
 
 ```yaml
-tunnel: <your-tunnel-id>
-credentials-file: /home/falcyon/.cloudflared/<your-tunnel-id>.json
+tunnel: <your-new-tunnel-id>
+credentials-file: /home/falcyon/.cloudflared/<your-new-tunnel-id>.json
 
 ingress:
-  - hostname: media.leff.in
-    service: http://127.0.0.1:80
   - hostname: fourthwall.leff.in
     service: http://127.0.0.1:80
   - service: http_status:404
 ```
 
-Restart cloudflared:
+### 4. Create Systemd Service
 
-```bash
-sudo systemctl restart cloudflared
+Create `/etc/systemd/system/cloudflared-fourthwall.service`:
+
+```ini
+[Unit]
+Description=Cloudflare Tunnel for Fourth Note
+After=network.target
+
+[Service]
+Type=simple
+User=falcyon
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/cloudflared/fourthwall-tunnel.yml run
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-### 3. Add DNS Record in Cloudflare
+Enable and start the service:
 
-1. Go to Cloudflare Dashboard → DNS
-2. Add a CNAME record:
-   - **Name:** `fourthwall`
-   - **Target:** `<your-tunnel-id>.cfargotunnel.com`
-   - **Proxy status:** Proxied (orange cloud)
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable cloudflared-fourthwall
+sudo systemctl start cloudflared-fourthwall
+```
 
-### 4. Verify
+### 5. Add DNS Record in Cloudflare
 
-1. Wait a few minutes for DNS propagation
+```bash
+# Route DNS to tunnel
+cloudflared tunnel route dns fourthwall-tunnel fourthwall.leff.in
+```
+
+Or manually in Cloudflare Dashboard → DNS:
+- **Type:** CNAME
+- **Name:** `fourthwall`
+- **Target:** `<your-new-tunnel-id>.cfargotunnel.com`
+- **Proxy status:** Proxied (orange cloud)
+
+### 6. Verify
+
+1. Check tunnel status: `sudo systemctl status cloudflared-fourthwall`
 2. Visit `https://fourthwall.leff.in`
 3. Dashboard should load with HTTPS (Cloudflare handles SSL)
