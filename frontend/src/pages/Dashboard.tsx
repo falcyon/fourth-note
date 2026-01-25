@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { api, Investment, InvestmentListResponse } from '../api/client'
-import StatusBadge from '../components/StatusBadge'
+import { api, InvestmentListResponse } from '../api/client'
 import TriggerButton from '../components/TriggerButton'
 import Pagination from '../components/Pagination'
 
