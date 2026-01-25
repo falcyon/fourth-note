@@ -29,10 +29,10 @@ class Investment(Base):
     firm = Column(String(500))
     strategy_description = Column(Text)
     leaders = Column(Text)  # Leaders/PM/CEO
-    management_fees = Column(String(255))
-    incentive_fees = Column(String(255))
-    liquidity_lock = Column(String(255))
-    target_net_returns = Column(String(255))
+    management_fees = Column(Text)
+    incentive_fees = Column(Text)
+    liquidity_lock = Column(Text)
+    target_net_returns = Column(Text)
 
     # User notes (not from extraction)
     notes = Column(Text)
