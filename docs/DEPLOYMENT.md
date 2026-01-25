@@ -277,14 +277,19 @@ Required environment variables:
 
 ### 6. Gmail OAuth Setup
 
-**Important**: This step must be done on the mini PC directly (not via SSH) as it requires a web browser.
+**Important**: This step must be done on the NUC directly (not via SSH) as it requires a web browser.
 
 ```bash
-# Install Python dependencies first
-pip3 install google-auth-oauthlib
+# Ubuntu 24.04 requires a virtual environment for pip packages
+python3 -m venv ~/oauth-venv
+source ~/oauth-venv/bin/activate
 
-# Run OAuth setup
-python3 scripts/init-oauth.py
+# Install dependency and run OAuth setup
+pip install google-auth-oauthlib
+python scripts/init-oauth.py
+
+# Deactivate venv when done
+deactivate
 ```
 
 This will:
@@ -388,10 +393,13 @@ If you see "Token has been revoked" errors:
 # Remove old token
 rm token.json
 
-# Re-run OAuth setup
-python3 scripts/init-oauth.py
+# Re-run OAuth setup (requires browser access)
+source ~/oauth-venv/bin/activate
+python scripts/init-oauth.py
+deactivate
 
-# Restart backend
+# Copy new token and restart
+cp backend/data/token.json ./token.json
 docker compose restart backend
 ```
 
