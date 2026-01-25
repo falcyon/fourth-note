@@ -38,5 +38,5 @@ services:
     container_name: fourth-note-frontend
     depends_on: [backend]
     ports:
-      - "80:80"
+      - "3080:80"
     restart: unless-stopped
