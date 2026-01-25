@@ -24,10 +24,12 @@ class Document(Base):
     __tablename__ = "documents"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email_id = Column(UUID(as_uuid=True), ForeignKey("emails.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    email_id = Column(UUID(as_uuid=True), ForeignKey("emails.id"), nullable=True)  # Now nullable for manual uploads
     filename = Column(String(500), nullable=False)
     file_path = Column(String(1000))
     markdown_content = Column(Text)
+    markdown_file_path = Column(String(1000))  # Path to saved .md file
     # Store as string, use enum values (lowercase)
     processing_status = Column(String(50), default=DocumentStatus.PENDING.value, nullable=False)
     error_message = Column(Text)
@@ -35,8 +37,14 @@ class Document(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="documents")
     email = relationship("Email", back_populates="documents")
-    investments = relationship("Investment", back_populates="document", cascade="all, delete-orphan")
+    investment_documents = relationship("InvestmentDocument", back_populates="document", cascade="all, delete-orphan")
+
+    @property
+    def investments(self):
+        """Get all investments linked to this document."""
+        return [id.investment for id in self.investment_documents]
 
     def __repr__(self):
         return f"<Document {self.filename}>"

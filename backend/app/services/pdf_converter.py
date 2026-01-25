@@ -37,11 +37,6 @@ class PdfConverter:
 
             try:
                 image = Image.open(io.BytesIO(image_bytes))
-                self.progress.emit("ocr", f"Running OCR on image {total_images} (page {page_num + 1})...", {
-                    "page": page_num + 1,
-                    "image": total_images
-                })
-
                 ocr_text = pytesseract.image_to_string(image, lang=self.ocr_lang)
 
                 if ocr_text.strip():
@@ -75,12 +70,11 @@ class PdfConverter:
         })
 
         # Process each page
-        for page_num, page in enumerate(doc):
-            self.progress.emit("ocr", f"Scanning page {page_num + 1}/{total_pages}...", {
-                "page": page_num + 1,
-                "total_pages": total_pages
-            })
+        self.progress.emit("ocr", f"Scanning {total_pages} pages for images...", {
+            "pages": total_pages
+        })
 
+        for page_num, page in enumerate(doc):
             images, with_text = self._process_page_images(page, page_num, total_pages)
             total_images += images
             total_ocr_text += with_text
@@ -103,6 +97,8 @@ class PdfConverter:
         try:
             result = self.markitdown.convert(str(tmp_path))
             markdown_text = result.text_content if result else ""
+            # Remove NUL bytes that PostgreSQL doesn't accept in text fields
+            markdown_text = markdown_text.replace('\x00', '')
         finally:
             # Clean up temp file (ignore errors on Windows)
             try:

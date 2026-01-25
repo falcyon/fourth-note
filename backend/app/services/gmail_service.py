@@ -1,6 +1,6 @@
 """Gmail API service with OAuth token management."""
 import json
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable
 from pathlib import Path
 
 from google.oauth2.credentials import Credentials
@@ -12,22 +12,40 @@ from app.config import get_settings
 settings = get_settings()
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
+# Type alias for token refresh callback
+TokenSaveCallback = Callable[[Dict[str, Any]], None]
+
 
 class GmailService:
     """Service for interacting with Gmail API."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        token_json: Optional[Dict[str, Any]] = None,
+        on_token_refresh: Optional[TokenSaveCallback] = None,
+    ):
+        """Initialize Gmail service.
+
+        Args:
+            token_json: Optional per-user token data. If None, uses global token file.
+            on_token_refresh: Optional callback to save refreshed tokens (for per-user tokens).
+        """
         self._service: Optional[Resource] = None
         self._credentials: Optional[Credentials] = None
+        self._token_json = token_json  # Per-user token data
+        self._on_token_refresh = on_token_refresh  # Callback for saving refreshed tokens
 
     def _load_credentials(self) -> Optional[Credentials]:
-        """Load credentials from JSON token file."""
-        token_path = settings.token_path
-
-        if not token_path.exists():
-            return None
-
-        token_data = json.loads(token_path.read_text(encoding="utf-8"))
+        """Load credentials from per-user token or file."""
+        # If per-user token provided, use it
+        if self._token_json:
+            token_data = self._token_json
+        else:
+            # Fall back to global token file
+            token_path = settings.token_path
+            if not token_path.exists():
+                return None
+            token_data = json.loads(token_path.read_text(encoding="utf-8"))
 
         return Credentials(
             token=token_data.get("token"),
@@ -39,9 +57,11 @@ class GmailService:
         )
 
     def _save_credentials(self, creds: Credentials) -> None:
-        """Save refreshed credentials back to JSON file."""
-        token_path = settings.token_path
+        """Save refreshed credentials back to storage.
 
+        Uses the on_token_refresh callback if provided (for per-user tokens),
+        otherwise saves to the global token file.
+        """
         token_data = {
             "token": creds.token,
             "refresh_token": creds.refresh_token,
@@ -51,7 +71,13 @@ class GmailService:
             "scopes": list(creds.scopes) if creds.scopes else SCOPES,
         }
 
-        token_path.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
+        # If we have a callback for per-user tokens, use it
+        if self._on_token_refresh:
+            self._on_token_refresh(token_data)
+        else:
+            # Fall back to global token file
+            token_path = settings.token_path
+            token_path.write_text(json.dumps(token_data, indent=2), encoding="utf-8")
 
     def get_service(self) -> Resource:
         """Get authenticated Gmail service, refreshing token if needed."""
@@ -164,13 +190,29 @@ class GmailService:
         return base64.urlsafe_b64decode(attachment["data"])
 
 
-# Singleton instance
+# Singleton instance for global token
 _gmail_service: Optional[GmailService] = None
 
 
-def get_gmail_service() -> GmailService:
-    """Get singleton Gmail service instance."""
+def get_gmail_service(
+    token_json: Optional[Dict[str, Any]] = None,
+    on_token_refresh: Optional[TokenSaveCallback] = None,
+) -> GmailService:
+    """Get Gmail service instance.
+
+    Args:
+        token_json: Optional per-user token. If provided, creates a new instance.
+                   If None, returns singleton with global token file.
+        on_token_refresh: Optional callback to save refreshed tokens. Only used
+                         when token_json is provided (per-user mode).
+    """
     global _gmail_service
+
+    # If per-user token provided, return new instance (not cached)
+    if token_json:
+        return GmailService(token_json=token_json, on_token_refresh=on_token_refresh)
+
+    # Otherwise use singleton for global token
     if _gmail_service is None:
         _gmail_service = GmailService()
     return _gmail_service

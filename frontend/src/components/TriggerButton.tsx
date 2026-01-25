@@ -1,4 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+
+const TOKEN_KEY = 'fourth_note_token'
 
 interface ProgressEvent {
   step: string
@@ -16,7 +18,15 @@ export default function TriggerButton({ onComplete }: TriggerButtonProps) {
   const [progress, setProgress] = useState<ProgressEvent[]>([])
   const [showProgress, setShowProgress] = useState(false)
   const [finalResult, setFinalResult] = useState<{ status: string; message: string } | null>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const progressContainerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll progress panel to show latest entry
+  useEffect(() => {
+    if (progressContainerRef.current) {
+      progressContainerRef.current.scrollTop = progressContainerRef.current.scrollHeight
+    }
+  }, [progress])
 
   const handleClick = async () => {
     setLoading(true)
@@ -24,38 +34,92 @@ export default function TriggerButton({ onComplete }: TriggerButtonProps) {
     setShowProgress(true)
     setFinalResult(null)
 
-    // Use Server-Sent Events for real-time progress
-    const eventSource = new EventSource('/api/v1/trigger/fetch-emails/stream')
-    eventSourceRef.current = eventSource
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data: ProgressEvent = JSON.parse(event.data)
-        setProgress(prev => [...prev, data])
-
-        if (data.step === 'complete' || data.step === 'error') {
-          eventSource.close()
-          setLoading(false)
-          setFinalResult({
-            status: data.step === 'complete' ? 'success' : 'error',
-            message: data.message,
-          })
-          if (data.step === 'complete' && onComplete) {
-            onComplete()
-          }
-        }
-      } catch (e) {
-        console.error('Failed to parse SSE data:', e)
-      }
-    }
-
-    eventSource.onerror = () => {
-      eventSource.close()
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) {
       setLoading(false)
       setFinalResult({
         status: 'error',
-        message: 'Connection lost',
+        message: 'Not authenticated',
       })
+      return
+    }
+
+    // Use fetch with streaming for SSE with auth headers
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
+    try {
+      const response = await fetch('/api/v1/trigger/fetch-emails/stream', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: abortController.signal,
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem('fourth_note_user')
+          window.location.href = '/login'
+          return
+        }
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('No response body')
+      }
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          setLoading(false)
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // Process complete SSE messages
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data: ProgressEvent = JSON.parse(line.slice(6))
+              setProgress(prev => [...prev, data])
+
+              if (data.step === 'complete' || data.step === 'error') {
+                setLoading(false)
+                setFinalResult({
+                  status: data.step === 'complete' ? 'success' : 'error',
+                  message: data.message,
+                })
+                if (data.step === 'complete' && onComplete) {
+                  onComplete()
+                }
+                reader.cancel()
+                return
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setLoading(false)
+        setFinalResult({
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Connection lost',
+        })
+      }
     }
   }
 
@@ -110,7 +174,7 @@ export default function TriggerButton({ onComplete }: TriggerButtonProps) {
 
       {/* Progress Panel */}
       {showProgress && (
-        <div className="absolute top-full right-0 mt-2 w-96 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+        <div className="absolute top-full right-0 mt-2 w-96 max-h-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 flex flex-col">
           <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-2 flex justify-between items-center">
             <span className="font-medium text-gray-700">
               {loading ? 'Processing...' : (finalResult?.status === 'success' ? 'Complete' : 'Failed')}
@@ -125,7 +189,7 @@ export default function TriggerButton({ onComplete }: TriggerButtonProps) {
             )}
           </div>
 
-          <div className="p-3 space-y-1">
+          <div ref={progressContainerRef} className="p-3 space-y-1 flex-1 overflow-y-auto">
             {progress.map((event, idx) => (
               <div key={idx} className={`text-sm flex items-start gap-2 ${getStepColor(event.step)}`}>
                 <span className="flex-shrink-0">{getStepIcon(event.step)}</span>

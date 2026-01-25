@@ -77,45 +77,36 @@
 
 ---
 
-## Local Testing Setup
+## Local Testing Setup (Docker)
 
 ### Prerequisites
-- Python 3.11+ installed
-- Node.js 18+ installed
-- PostgreSQL running (via Docker or local install)
-- Tesseract-OCR installed (already in PATH)
+
+- Docker Desktop installed
+- Google Cloud credentials (credentials.json, token.json)
 
 ### Quick Start (Windows)
 
-1. **Start PostgreSQL** (one of these options):
-   ```cmd
-   # Option A: Docker Desktop (if installed)
-   docker run -d --name fourth-note-postgres -e POSTGRES_USER=pitchdeck -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=pitchdeck -p 5432:5432 postgres:16-alpine
+1. **Setup environment**:
 
-   # Option B: Local PostgreSQL - create database manually
-   psql -U postgres -c "CREATE USER pitchdeck WITH PASSWORD 'devpassword';"
-   psql -U postgres -c "CREATE DATABASE pitchdeck OWNER pitchdeck;"
+   ```powershell
+   cp .env.example .env
+   # Edit .env with your Google API credentials
    ```
 
-2. **Backend setup**:
-   ```cmd
-   cd fourth-note\backend
-   python -m venv venv
-   venv\Scripts\activate
-   pip install -r requirements.txt
-   alembic upgrade head
-   uvicorn app.main:app --reload --port 8000
+2. **Start all services**:
+
+   ```powershell
+   docker compose -f docker-compose.dev.yml up --build
    ```
 
-3. **Frontend setup** (new terminal):
-   ```cmd
-   cd fourth-note\frontend
-   npm install
-   npm run dev
+3. **Run migrations** (first time only):
+
+   ```powershell
+   docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
    ```
 
 4. **Access**:
-   - Frontend: http://localhost:5173
+   - Frontend: http://localhost:4444
    - Backend API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
 
@@ -124,9 +115,53 @@
 ## Known Issues
 _None yet_
 
+---
+
+## Version 1.1 Features
+
+**Focus:** Multi-tenant auth, UI polish
+
+- [x] **Feature 1:** Update README with server URL (<https://fourthnote.leff.in>) and vision
+- [x] **Feature 2:** Gmail-based login with multi-tenant data isolation
+  - Google Sign-In authentication
+  - Per-user data isolation (user_id FK on all tables)
+  - Demo account (`leffin7@gmail.com`) for testing/showcasing
+- [x] **Feature 6:** Save markdown files alongside PDFs for reference
+- [ ] **Feature 9:** UI improvements
+  - Auto-scroll progress panel to latest entry
+  - Compact image OCR logs: "(4/40)" instead of multiple lines
+- [ ] **Feature 10:** Dashboard improvements
+  - Show all JSON attributes in main table
+  - Remove source/extracted date columns
+
+---
+
+## Version 2.0 Features (Planned)
+
+**Focus:** Smart filtering, multiple data sources, investment-centric architecture
+
+- [ ] **Feature 3:** Relevance check for PDF attachments
+  - First check attachment name + email body
+  - If unclear, scan the PDF content
+  - Skip irrelevant attachments
+- [ ] **Feature 4:** Agentic architecture with multiple agents
+- [ ] **Feature 5:** Support PPT and Word files via markitdown (no OCR)
+- [ ] **Feature 6a:** Source attribution on hover
+  - Show context window with source text for each extracted value
+- [ ] **Feature 7:** Document management for investments
+  - List relevant docs on investment detail page
+  - Download capability
+- [ ] **Feature 7a:** In-browser document viewer
+- [ ] **Feature 8:** Investment-centric database redesign
+  - Track source for each extracted value
+  - Support multiple sources per investment
+  - Meeting notes, manual updates, web data, quarterly calls
+
+---
+
 ## Future Enhancements
+
+- [ ] Competitor/similar fund tracking (vector embeddings)
+- [ ] pgvector semantic search
 - [ ] Email notifications on extraction errors
 - [ ] Bulk re-extraction capability
-- [ ] Document preview in UI
-- [ ] Multi-user support with authentication
-- [ ] pgvector semantic search

@@ -3,7 +3,7 @@ import uuid
 import enum
 from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -22,6 +22,7 @@ class Email(Base):
     __tablename__ = "emails"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     gmail_message_id = Column(String(255), unique=True, nullable=False, index=True)
     subject = Column(String(500))
     sender = Column(String(255))
@@ -32,6 +33,7 @@ class Email(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    user = relationship("User", back_populates="emails")
     documents = relationship("Document", back_populates="email", cascade="all, delete-orphan")
 
     def __repr__(self):

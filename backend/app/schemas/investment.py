@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Dict
 
 
 class InvestmentBase(BaseModel):
@@ -16,11 +16,12 @@ class InvestmentBase(BaseModel):
 
 
 class InvestmentCreate(InvestmentBase):
-    document_id: UUID
-    raw_extraction_json: Optional[Dict[str, Any]] = None
+    """For creating an investment manually (without a document)."""
+    notes: Optional[str] = None
 
 
 class InvestmentUpdate(BaseModel):
+    """For updating investment fields."""
     investment_name: Optional[str] = None
     firm: Optional[str] = None
     strategy_description: Optional[str] = None
@@ -29,24 +30,69 @@ class InvestmentUpdate(BaseModel):
     incentive_fees: Optional[str] = None
     liquidity_lock: Optional[str] = None
     target_net_returns: Optional[str] = None
+    notes: Optional[str] = None
+    is_archived: Optional[bool] = None
 
 
-class InvestmentResponse(InvestmentBase):
+# Field attribution schemas
+class FieldAttribution(BaseModel):
+    """Attribution info for a single field value."""
+    value: Optional[str] = None
+    source_type: str
+    source_id: Optional[UUID] = None
+    source_name: Optional[str] = None
+    confidence: str = "medium"
+    extracted_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class FieldWithHistory(FieldAttribution):
+    """Field attribution with all historical values."""
+    all_values: List[FieldAttribution] = []
+
+
+# Document reference schemas
+class InvestmentDocumentResponse(BaseModel):
+    """Document linked to an investment."""
     id: UUID
     document_id: UUID
-    raw_extraction_json: Optional[Dict[str, Any]] = None
+    filename: str
+    relationship: str = "source"
+    has_pdf: bool = False
+    has_markdown: bool = False
+    added_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Main investment response schemas
+class InvestmentResponse(InvestmentBase):
+    """Basic investment response for list views."""
+    id: UUID
+    notes: Optional[str] = None
+    is_archived: bool = False
+    source_count: int = 0
     created_at: datetime
     updated_at: datetime
 
-    # Nested info for display
-    source_filename: Optional[str] = None
-    source_email_subject: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+
+class InvestmentDetailResponse(InvestmentResponse):
+    """Detailed investment response with field attributions and documents."""
+    field_attributions: Optional[Dict[str, FieldWithHistory]] = None
+    documents: List[InvestmentDocumentResponse] = []
 
     class Config:
         from_attributes = True
 
 
 class InvestmentListResponse(BaseModel):
+    """Paginated list of investments."""
     items: List[InvestmentResponse]
     total: int
     page: int

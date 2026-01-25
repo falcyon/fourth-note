@@ -8,6 +8,8 @@ from typing import Optional, AsyncGenerator
 import json
 
 from app.database import get_db, SessionLocal
+from app.models.user import User
+from app.middleware.auth import get_current_user
 from app.services.scheduler import trigger_immediate_run
 from app.services.progress import get_progress_tracker, ProgressEvent
 
@@ -22,13 +24,13 @@ class TriggerResponse(BaseModel):
     error: Optional[str] = None
 
 
-def run_processing_with_progress():
+def run_processing_with_progress(user_id=None):
     """Run the email processing and return result."""
     progress = get_progress_tracker()
     progress.clear()
     progress.emit("start", "Starting email processing...")
 
-    result = trigger_immediate_run()
+    result = trigger_immediate_run(user_id)
 
     if result.get("status") == "error":
         progress.error(f"Processing failed: {result.get('error')}", result)
@@ -41,14 +43,18 @@ def run_processing_with_progress():
     return result
 
 
-async def progress_stream() -> AsyncGenerator[str, None]:
+# Global to store user_id for the current processing run
+_current_user_id = None
+
+
+async def progress_stream(user_id=None) -> AsyncGenerator[str, None]:
     """Generate SSE stream of progress events."""
     progress = get_progress_tracker()
     queue = progress.subscribe()
 
-    # Start processing in a thread
+    # Start processing in a thread with user_id
     loop = asyncio.get_event_loop()
-    task = loop.run_in_executor(None, run_processing_with_progress)
+    task = loop.run_in_executor(None, lambda: run_processing_with_progress(user_id))
 
     try:
         while True:
@@ -73,12 +79,15 @@ async def progress_stream() -> AsyncGenerator[str, None]:
 
 
 @router.get("/fetch-emails/stream")
-async def trigger_fetch_emails_stream():
+async def trigger_fetch_emails_stream(
+    current_user: User = Depends(get_current_user),
+):
     """
     Stream progress of email fetch and processing via Server-Sent Events.
+    Only processes emails for the authenticated user.
     """
     return StreamingResponse(
-        progress_stream(),
+        progress_stream(user_id=current_user.id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -89,13 +98,16 @@ async def trigger_fetch_emails_stream():
 
 
 @router.post("/fetch-emails", response_model=TriggerResponse)
-async def trigger_fetch_emails():
+async def trigger_fetch_emails(
+    current_user: User = Depends(get_current_user),
+):
     """
     Manually trigger email fetch and processing.
+    Only processes emails for the authenticated user.
 
     This runs synchronously and returns the result.
     """
-    result = trigger_immediate_run()
+    result = trigger_immediate_run(user_id=current_user.id)
 
     if result.get("status") == "error":
         return TriggerResponse(

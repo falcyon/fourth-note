@@ -22,6 +22,13 @@ class Settings(BaseSettings):
 
     # Google APIs
     google_api_key: str = ""
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
+    # JWT Authentication
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_hours: int = 24 * 7  # 1 week
 
     # Gmail Configuration
     gmail_query_since: int = 1735689600  # Jan 1, 2025 UTC
@@ -37,6 +44,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore Docker-specific vars like POSTGRES_USER
 
     @property
     def data_path(self) -> Path:

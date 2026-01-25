@@ -2,116 +2,125 @@
 
 ## Project Overview
 
-Fourth Note is a pitch deck tracking application that automatically fetches investor update emails from Gmail, extracts PDF attachments, converts them to text, and uses Gemini AI to extract structured investment data.
+Fourth Note is an investment tracking application that:
+1. Fetches investor update emails from Gmail
+2. Extracts PDF attachments and converts to text (with OCR)
+3. Uses Gemini AI to extract structured investment data
+4. Provides a web dashboard for viewing and managing investments
 
-## Architecture
+## Tech Stack
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Frontend   │────▶│   Backend   │────▶│  PostgreSQL │
-│  React/Vite │     │   FastAPI   │     │             │
-└─────────────┘     └─────────────┘     └─────────────┘
-                          │
-                    ┌─────┴─────┐
-                    ▼           ▼
-               Gmail API    Gemini AI
-```
-
-**Tech Stack:**
 - **Backend:** Python 3.11, FastAPI, SQLAlchemy, Alembic
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS
-- **Database:** PostgreSQL 16 Alpine
+- **Database:** PostgreSQL 16
 - **APIs:** Gmail API (OAuth2), Google Gemini AI
+- **Auth:** Google Sign-In, JWT tokens
 
-## Key Directories
+## Project Structure
 
 ```
-backend/
-├── app/
-│   ├── api/          # FastAPI route handlers
-│   ├── models/       # SQLAlchemy models (email, document, investment)
-│   ├── schemas/      # Pydantic schemas
-│   └── services/     # Business logic
-│       ├── gmail_service.py      # Gmail API integration
-│       ├── pdf_converter.py      # PDF to text (markitdown + OCR)
-│       ├── extraction_service.py # Gemini AI data extraction
-│       └── scheduler.py          # Background job scheduler
-
-frontend/
-├── src/
-│   ├── pages/        # Dashboard, InvestmentDetail, Settings
-│   ├── components/   # Reusable UI components
-│   └── api/          # API client
-
-scripts/
-├── init-oauth.py     # Gmail OAuth setup (run locally with browser)
+fourth-note/
+├── backend/                    # Python FastAPI backend
+│   ├── app/
+│   │   ├── api/               # REST API endpoints
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── services/          # Business logic
+│   │   └── middleware/        # Auth middleware
+│   ├── alembic/               # Database migrations
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── frontend/                   # React frontend
+│   ├── src/
+│   │   ├── api/               # API client
+│   │   ├── components/        # UI components
+│   │   ├── context/           # React context (auth)
+│   │   └── pages/             # Page components
+│   ├── Dockerfile
+│   └── package.json
+│
+├── scripts/
+│   └── init-oauth.py          # Gmail OAuth setup
+│
+├── config/
+│   └── nginx/                 # Nginx configs for deployment
+│
+├── .env.example               # Environment template
+├── docker-compose.yml         # Production (Linux server)
+├── docker-compose.dev.yml     # Local development (Windows)
+├── credentials.json           # Google Cloud credentials (gitignored)
+└── token.json                 # Gmail OAuth token (gitignored)
 ```
 
-## Deployment
+## Quick Start
 
-**Target:** Ubuntu NUC with external drive
+### 1. Setup Environment
 
-**Folder Layout:**
-```
-~/fourth-note/                    # Git repo
-├── .env                          # Secrets (not in git)
-├── token.json                    # Gmail OAuth token (not in git)
-├── credentials.json              # Google Cloud credentials (not in git)
-
-/mnt/WD1/fourth-note/             # External drive data
-├── postgres/                     # Database files
-└── data/emails/                  # Downloaded PDFs
+```bash
+cp .env.example .env
+# Edit .env with your credentials
 ```
 
-**Docker volumes use bind mounts to `/mnt/WD1/fourth-note/`** for persistence on external storage.
+### 2. Run with Docker
+
+**Local Development (Windows):**
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+**Production (Linux server):**
+
+```bash
+docker compose up -d --build
+```
+
+### 3. Run Migrations
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+Access at: http://localhost:4444
 
 ## Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `POSTGRES_PASSWORD` | Database password (required) |
-| `GOOGLE_API_KEY` | Gemini API key (required) |
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_API_KEY` | Gemini API key |
+| `GOOGLE_CLIENT_ID` | OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
+| `JWT_SECRET_KEY` | JWT signing key |
 | `GMAIL_QUERY_SINCE` | Unix timestamp for email fetch cutoff |
-| `SCHEDULER_INTERVAL_HOURS` | Hours between automatic email checks |
-
-## Common Commands
-
-```bash
-# Start services
-docker compose up -d
-
-# View logs
-docker compose logs -f backend
-
-# Rebuild after code changes
-docker compose build && docker compose up -d
-
-# Run database migrations
-docker compose exec backend alembic upgrade head
-
-# Re-authenticate Gmail (requires browser)
-python3 scripts/init-oauth.py
-```
+| `SCHEDULER_INTERVAL_HOURS` | Hours between auto-fetch (0 to disable) |
 
 ## API Endpoints
 
-- `GET /api/v1/status` - Health check
-- `GET /api/v1/investments` - List all investments
+- `POST /api/v1/auth/login` - Google Sign-In
+- `GET /api/v1/auth/me` - Current user info
+- `GET /api/v1/investments` - List investments
 - `GET /api/v1/investments/{id}` - Investment details
-- `POST /api/v1/trigger/fetch` - Manually trigger email fetch
-- `GET /api/v1/oauth/status` - Gmail OAuth status
+- `GET /api/v1/trigger/fetch-emails/stream` - Trigger email fetch (SSE)
+- `GET /api/v1/status` - Health check
 
-## Data Flow
+## Database Migrations
 
-1. **Email Fetch:** Gmail API queries for emails with PDF attachments since `GMAIL_QUERY_SINCE`
-2. **PDF Download:** Attachments saved to `/mnt/WD1/fourth-note/data/emails/`
-3. **Text Extraction:** markitdown converts PDF to markdown (falls back to OCR)
-4. **AI Extraction:** Gemini extracts structured data (company, metrics, dates)
-5. **Storage:** Results saved to PostgreSQL with status tracking
+```bash
+# Inside container
+docker compose exec backend alembic upgrade head
 
-## Notes for Development
+# Create new migration
+docker compose exec backend alembic revision --autogenerate -m "description"
+```
 
-- Frontend runs on port 4444 (nginx), backend on port 8000
-- PostgreSQL not exposed externally (internal Docker network only)
-- OAuth token refresh is automatic; manual re-auth needed if revoked
-- Scheduler runs in-process with FastAPI (APScheduler)
+## Key Files
+
+- `backend/app/main.py` - FastAPI app entry point
+- `backend/app/services/extraction_service.py` - Gemini AI extraction
+- `backend/app/services/gmail_service.py` - Gmail API integration
+- `frontend/src/App.tsx` - React app with routing
+- `frontend/src/context/AuthContext.tsx` - Authentication state
+
+## Feature Tracking
+
+**IMPORTANT:** Whenever the user mentions a feature they'd like in the future, add it to `docs/TODO.md` under the appropriate version section. This ensures no feature requests are lost.

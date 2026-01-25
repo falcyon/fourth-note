@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.email import Email
 from app.models.document import Document
+from app.models.user import User
+from app.middleware.auth import get_current_user
 from app.schemas.email import EmailResponse, EmailListResponse
 
 router = APIRouter()
@@ -20,11 +22,13 @@ async def list_emails(
     per_page: int = Query(20, ge=1, le=100),
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List processed emails with pagination.
+    Only returns emails belonging to the current user.
     """
-    query = db.query(Email)
+    query = db.query(Email).filter(Email.user_id == current_user.id)
 
     if status:
         query = query.filter(Email.status == status)
@@ -63,11 +67,16 @@ async def list_emails(
 async def get_email(
     email_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get a single email by ID.
+    Only returns emails belonging to the current user.
     """
-    email = db.query(Email).filter(Email.id == email_id).first()
+    email = db.query(Email).filter(
+        Email.id == email_id,
+        Email.user_id == current_user.id
+    ).first()
 
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")

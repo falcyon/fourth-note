@@ -1,56 +1,66 @@
 # Fourth Note
 
-**Version 1.0.0**
+**Live at:** [fourthnote.leff.in](https://fourthnote.leff.in)
 
-An intelligent system that automatically extracts investment data from pitch deck PDFs received via email.
+A centralized brain for investors to track every investment. Fourth Note automatically aggregates investment data from multiple sources, extracts key metrics using AI, and provides a unified dashboard for portfolio oversight.
 
-## What It Does
+## Vision
 
-1. **Monitors Gmail** - Automatically checks for new emails with PDF attachments every 6 hours
-2. **Processes PDFs** - Converts pitch deck PDFs to text using OCR technology
-3. **Extracts Data** - Uses AI (Google Gemini) to identify and extract 8 key investment fields:
-   - Investment Name
-   - Firm
-   - Strategy Description
-   - Leaders/PM/CEO
-   - Management Fees
-   - Incentive Fees
-   - Liquidity/Lock
-   - Target Net Returns
-4. **Stores Results** - Saves extracted data to a searchable PostgreSQL database
-5. **Provides Dashboard** - Web interface to view, search, edit, and export data
+Investors receive information about their investments from many sources: pitch decks, quarterly reports, meeting notes, web updates, and phone calls. Fourth Note aims to be the single source of truth that:
 
-## Accessing the Dashboard
+- **Aggregates** data from all sources automatically
+- **Extracts** both static info (fund name, managers) and dynamic metrics (returns, fees)
+- **Tracks** changes over time
+- **Surfaces** relevant comparisons and competitor analysis
 
-Once deployed, access the dashboard at: `http://<server-ip>/`
+## Current Features (v1.0)
 
-### Dashboard Features
+### Pitch Deck Processing
+- **Gmail Integration** - Monitors inbox for emails with PDF attachments
+- **OCR Processing** - Extracts text from scanned pitch decks
+- **AI Extraction** - Uses Google Gemini to identify 8 key investment fields:
+  - Investment Name, Firm, Strategy Description, Leaders
+  - Management Fees, Incentive Fees, Liquidity/Lock, Target Returns
+- **Searchable Database** - All extracted data stored in PostgreSQL
+- **Web Dashboard** - View, search, edit, and export investment data
 
-- **View All Investments** - Searchable, sortable table of all extracted investments
-- **Investment Details** - Click any row to see full details and source document
-- **Manual Fetch** - Click "Fetch Emails" button to trigger immediate email check with real-time progress
-- **Export Data** - Download all data as CSV for use in spreadsheets
-- **System Status** - View Gmail connection, scheduler status, and database stats
+### Dashboard Capabilities
+- Searchable, sortable investment table
+- Detailed view with full extraction data
+- Manual email fetch with real-time progress
+- CSV export for spreadsheet analysis
+- System health monitoring
 
-## Manual Email Fetch
+## Roadmap
 
-If you don't want to wait for the scheduled 6-hour interval:
+### v1.1 (In Progress)
+- User authentication via Google Sign-In
+- Multi-tenant data isolation
+- Markdown file preservation for reference
 
-1. Open the dashboard
-2. Click the "Fetch Emails" button
-3. Watch real-time progress as it processes
-4. New investments will appear in the table
+### v2.0 (Planned)
+- Meeting notes ingestion
+- Manual data entry interface
+- Web scraping for public fund data
+- Quarterly call transcription
+- Source attribution on hover
 
-## Exporting Data
-
-1. Go to the Settings page
-2. Click "Export to CSV"
-3. Open in Excel or Google Sheets
+### Future
+- Competitor/similar fund tracking
+- Vector embeddings for semantic search
+- Investment comparison tools
 
 ## Deployment
 
-See `docs/DEPLOYMENT.md` for full deployment instructions on Ubuntu/Docker.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
+- Local development setup (Windows)
+- Production deployment (Ubuntu/Docker)
+- Cloudflare tunnel configuration
 
-## Support
+## Tech Stack
 
-For technical issues, check the [deployment guide](docs/DEPLOYMENT.md) for troubleshooting.
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS
+- **Database:** PostgreSQL
+- **AI:** Google Gemini
+- **Infrastructure:** Docker, Nginx, Cloudflare Tunnel

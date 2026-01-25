@@ -1,15 +1,20 @@
 """AI-powered extraction service using Google Gemini."""
 import json
 import re
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from google import genai
 
 from app.config import get_settings
 from app.models.document import Document, DocumentStatus
 from app.models.investment import Investment
+from app.models.investment_document import InvestmentDocument
+from app.models.field_value import FieldValue
+from app.models.user import User
 from app.services.pdf_converter import get_pdf_converter
 from app.services.progress import get_progress_tracker
 
@@ -55,8 +60,10 @@ FIELD_MAPPING = {
 class ExtractionService:
     """Service for extracting investment data from documents."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user: Optional[User] = None):
         self.db = db
+        self.user = user
+        self.user_id = user.id if user else None
         self.client = genai.Client(api_key=settings.google_api_key)
         self.pdf_converter = get_pdf_converter()
         self.progress = get_progress_tracker()
@@ -85,6 +92,76 @@ class ExtractionService:
         raw_data = self._extract_json(response.text)
         return self._map_fields(raw_data), raw_data
 
+    def _find_matching_investment(self, name: Optional[str], firm: Optional[str], user_id: UUID) -> Optional[Investment]:
+        """Try to find an existing investment by name and firm."""
+        if not name and not firm:
+            return None
+
+        query = self.db.query(Investment).filter(Investment.user_id == user_id)
+
+        # Try exact match on name and firm
+        if name and firm:
+            existing = query.filter(
+                func.lower(Investment.investment_name) == func.lower(name),
+                func.lower(Investment.firm) == func.lower(firm)
+            ).first()
+            if existing:
+                return existing
+
+        # Try match on just firm if name is similar or missing
+        if firm:
+            existing = query.filter(
+                func.lower(Investment.firm) == func.lower(firm)
+            ).first()
+            if existing and (not name or not existing.investment_name or
+                           name.lower() in existing.investment_name.lower() or
+                           existing.investment_name.lower() in name.lower()):
+                return existing
+
+        return None
+
+    def _create_field_values(
+        self,
+        investment: Investment,
+        mapped_fields: Dict[str, Any],
+        document: Document
+    ) -> List[FieldValue]:
+        """Create FieldValue records for each extracted field."""
+        field_values = []
+
+        for field_name, field_value in mapped_fields.items():
+            if field_value is None:
+                continue
+
+            # Mark any existing current values for this field as not current
+            self.db.query(FieldValue).filter(
+                FieldValue.investment_id == investment.id,
+                FieldValue.field_name == field_name,
+                FieldValue.is_current == True
+            ).update({"is_current": False})
+
+            # Create new field value
+            fv = FieldValue(
+                investment_id=investment.id,
+                field_name=field_name,
+                field_value=field_value,
+                source_type="document",
+                source_id=document.id,
+                source_name=document.filename,
+                is_current=True,
+                confidence="medium",
+            )
+            self.db.add(fv)
+            field_values.append(fv)
+
+        return field_values
+
+    def _update_denormalized_fields(self, investment: Investment, mapped_fields: Dict[str, Any]) -> None:
+        """Update the denormalized field columns on Investment."""
+        for field_name, field_value in mapped_fields.items():
+            if field_value is not None:
+                setattr(investment, field_name, field_value)
+
     def process_document(self, document_id: UUID) -> Optional[Investment]:
         """Process a document: convert to markdown and extract investment data."""
         document = self.db.query(Document).filter(Document.id == document_id).first()
@@ -102,7 +179,11 @@ class ExtractionService:
             self.db.commit()
 
             if document.file_path and document.file_path.endswith('.pdf'):
-                markdown = self.pdf_converter.convert_pdf(document.file_path)
+                # Save markdown file alongside PDF
+                pdf_path = Path(document.file_path)
+                md_path = pdf_path.with_suffix('.md')
+                markdown = self.pdf_converter.convert_pdf(document.file_path, output_md_path=str(md_path))
+                document.markdown_file_path = str(md_path)
             else:
                 markdown = document.markdown_content or ""
 
@@ -122,23 +203,53 @@ class ExtractionService:
 
             mapped_fields, raw_data = self.extract_from_markdown(markdown)
 
-            # Create investment record
-            investment = Investment(
-                document_id=document.id,
-                raw_extraction_json=raw_data,
-                **mapped_fields,
+            # Check if investment already exists
+            investment = self._find_matching_investment(
+                mapped_fields.get("investment_name"),
+                mapped_fields.get("firm"),
+                document.user_id
             )
-            self.db.add(investment)
+
+            is_new = investment is None
+            if is_new:
+                # Create new investment
+                investment = Investment(
+                    user_id=document.user_id,
+                )
+                self.db.add(investment)
+                self.db.flush()  # Get the ID
+
+            # Link document to investment
+            existing_link = self.db.query(InvestmentDocument).filter(
+                InvestmentDocument.investment_id == investment.id,
+                InvestmentDocument.document_id == document.id
+            ).first()
+
+            if not existing_link:
+                link = InvestmentDocument(
+                    investment_id=investment.id,
+                    document_id=document.id,
+                    relationship_type="source",
+                )
+                self.db.add(link)
+
+            # Create field values with source attribution
+            self._create_field_values(investment, mapped_fields, document)
+
+            # Update denormalized fields on Investment
+            self._update_denormalized_fields(investment, mapped_fields)
 
             document.processing_status = DocumentStatus.COMPLETED.value
             self.db.commit()
 
             investment_name = mapped_fields.get("investment_name", "Unknown")
             firm = mapped_fields.get("firm", "Unknown")
-            self.progress.emit("extraction", f"Extracted: {investment_name} ({firm})", {
+            action = "Created" if is_new else "Updated"
+            self.progress.emit("extraction", f"{action}: {investment_name} ({firm})", {
                 "filename": document.filename,
                 "investment_name": investment_name,
                 "firm": firm,
+                "is_new": is_new,
             })
 
             return investment
@@ -154,10 +265,13 @@ class ExtractionService:
             return None
 
     def process_pending_documents(self) -> List[Investment]:
-        """Process all pending documents."""
-        pending = self.db.query(Document).filter(
+        """Process all pending documents for the current user."""
+        query = self.db.query(Document).filter(
             Document.processing_status == DocumentStatus.PENDING.value
-        ).all()
+        )
+        if self.user_id:
+            query = query.filter(Document.user_id == self.user_id)
+        pending = query.all()
 
         if not pending:
             self.progress.emit("processing", "No pending documents to process")
@@ -182,6 +296,6 @@ class ExtractionService:
         return investments
 
 
-def get_extraction_service(db: Session) -> ExtractionService:
+def get_extraction_service(db: Session, user: Optional[User] = None) -> ExtractionService:
     """Factory function for ExtractionService."""
-    return ExtractionService(db)
+    return ExtractionService(db, user)

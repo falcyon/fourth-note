@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
+from uuid import UUID
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -9,6 +10,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.config import get_settings
 from app.database import SessionLocal
 from app.models.email import Email, EmailStatus
+from app.models.user import User
 from app.services.progress import get_progress_tracker
 
 settings = get_settings()
@@ -20,8 +22,50 @@ _last_run: Optional[datetime] = None
 _last_result: Optional[Dict[str, Any]] = None
 
 
-def run_email_processing():
-    """Job function: fetch new emails and process documents."""
+def _process_user_emails(db, user: User, progress) -> Dict[str, Any]:
+    """Process emails for a single user.
+
+    Returns dict with emails_fetched and investments_extracted counts.
+    """
+    from app.services.email_processor import get_email_processor, GmailNotConnectedError
+    from app.services.extraction_service import get_extraction_service
+
+    # Fetch new emails
+    processor = get_email_processor(db, user)
+    new_emails = processor.fetch_new_emails()
+    logger.info(f"Fetched {len(new_emails)} new emails for user {user.email}")
+
+    # Process pending documents
+    extractor = get_extraction_service(db, user)
+    investments = extractor.process_pending_documents()
+    logger.info(f"Extracted {len(investments)} new investments for user {user.email}")
+
+    # Update email statuses
+    for email in new_emails:
+        all_completed = all(
+            doc.processing_status in ("completed", "failed")
+            for doc in email.documents
+        )
+        if all_completed:
+            has_failures = any(
+                doc.processing_status == "failed"
+                for doc in email.documents
+            )
+            email.status = EmailStatus.FAILED.value if has_failures else EmailStatus.COMPLETED.value
+            db.commit()
+
+    return {
+        "emails_fetched": len(new_emails),
+        "investments_extracted": len(investments),
+    }
+
+
+def run_email_processing(user_id: Optional[UUID] = None):
+    """Job function: fetch new emails and process documents.
+
+    If user_id is provided, processes emails only for that user.
+    Otherwise, processes emails for all users with Gmail tokens.
+    """
     global _last_run, _last_result
 
     logger.info("Starting scheduled email processing...")
@@ -30,37 +74,44 @@ def run_email_processing():
 
     db = SessionLocal()
     try:
-        from app.services.email_processor import get_email_processor
-        from app.services.extraction_service import get_extraction_service
+        from app.services.email_processor import GmailNotConnectedError
 
-        # Fetch new emails
-        processor = get_email_processor(db)
-        new_emails = processor.fetch_new_emails()
-        logger.info(f"Fetched {len(new_emails)} new emails with PDF attachments")
+        total_emails = 0
+        total_investments = 0
 
-        # Process pending documents
-        extractor = get_extraction_service(db)
-        investments = extractor.process_pending_documents()
-        logger.info(f"Extracted {len(investments)} new investments")
+        if user_id:
+            # Process specific user
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise ValueError(f"User not found: {user_id}")
 
-        # Update email statuses
-        progress.emit("status", "Updating email statuses...")
-        for email in new_emails:
-            all_completed = all(
-                doc.processing_status in ("completed", "failed")
-                for doc in email.documents
-            )
-            if all_completed:
-                has_failures = any(
-                    doc.processing_status == "failed"
-                    for doc in email.documents
+            if not user.gmail_token_json:
+                raise GmailNotConnectedError(
+                    "Gmail account not connected. Please connect your Gmail in Settings."
                 )
-                email.status = EmailStatus.FAILED.value if has_failures else EmailStatus.COMPLETED.value
-                db.commit()
+
+            result = _process_user_emails(db, user, progress)
+            total_emails = result["emails_fetched"]
+            total_investments = result["investments_extracted"]
+        else:
+            # Scheduled job: process all users with Gmail tokens
+            users = db.query(User).filter(User.gmail_token_json.isnot(None)).all()
+            logger.info(f"Processing emails for {len(users)} users with Gmail connected")
+
+            for user in users:
+                try:
+                    result = _process_user_emails(db, user, progress)
+                    total_emails += result["emails_fetched"]
+                    total_investments += result["investments_extracted"]
+                except Exception as e:
+                    logger.error(f"Failed to process emails for user {user.email}: {e}")
+                    # Continue with other users
+
+        progress.emit("status", "Email processing complete")
 
         _last_result = {
-            "emails_fetched": len(new_emails),
-            "investments_extracted": len(investments),
+            "emails_fetched": total_emails,
+            "investments_extracted": total_investments,
             "status": "success",
         }
 
@@ -126,10 +177,10 @@ def get_scheduler_status() -> Dict[str, Any]:
     }
 
 
-def trigger_immediate_run() -> Dict[str, Any]:
-    """Trigger immediate email processing."""
+def trigger_immediate_run(user_id: Optional[UUID] = None) -> Dict[str, Any]:
+    """Trigger immediate email processing for a specific user."""
     if _scheduler is None:
         return {"error": "Scheduler not running"}
 
-    run_email_processing()
+    run_email_processing(user_id)
     return _last_result or {"status": "completed"}

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models.email import Email, EmailStatus
 from app.models.document import Document, DocumentStatus
+from app.models.user import User
 from app.services.gmail_service import get_gmail_service
 from app.services.progress import get_progress_tracker
 
@@ -28,14 +29,45 @@ def sanitize_filename(filename: str) -> str:
     return safe if safe and safe != ".pdf" else "attachment.pdf"
 
 
+class GmailNotConnectedError(Exception):
+    """Raised when user tries to fetch emails without a connected Gmail account."""
+    pass
+
+
 class EmailProcessor:
     """Processes emails from Gmail and saves to database."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user: User):
+        """Initialize email processor.
+
+        Args:
+            db: Database session
+            user: User whose Gmail will be accessed. Must have gmail_token_json set.
+
+        Raises:
+            GmailNotConnectedError: If user hasn't connected their Gmail account.
+        """
         self.db = db
-        self.gmail = get_gmail_service()
+        self.user = user
+        self.user_id = user.id
         self.data_dir = settings.data_path
         self.progress = get_progress_tracker()
+
+        # Require user's Gmail token - no fallback to global token
+        if not user.gmail_token_json:
+            raise GmailNotConnectedError(
+                "Gmail account not connected. Please connect your Gmail in Settings."
+            )
+
+        # Create a callback to save refreshed tokens back to the user's database record
+        def save_user_token(token_data: Dict[str, Any]) -> None:
+            user.gmail_token_json = token_data
+            db.commit()
+
+        self.gmail = get_gmail_service(
+            token_json=user.gmail_token_json,
+            on_token_refresh=save_user_token,
+        )
 
     def _extract_header(self, headers: List[Dict], name: str) -> Optional[str]:
         """Extract a header value from message headers."""
@@ -97,9 +129,10 @@ class EmailProcessor:
         return file_path
 
     def is_message_processed(self, gmail_message_id: str) -> bool:
-        """Check if a message has already been processed."""
+        """Check if a message has already been processed for this user."""
         return self.db.query(Email).filter(
-            Email.gmail_message_id == gmail_message_id
+            Email.gmail_message_id == gmail_message_id,
+            Email.user_id == self.user_id
         ).first() is not None
 
     def process_message(self, message_id: str) -> Optional[Email]:
@@ -128,6 +161,7 @@ class EmailProcessor:
             sender=sender,
             received_at=received_at,
             status=EmailStatus.PROCESSING.value,
+            user_id=self.user_id,
         )
         self.db.add(email)
         self.db.flush()
@@ -146,6 +180,7 @@ class EmailProcessor:
                 filename=sanitize_filename(attachment["filename"]),
                 file_path=str(file_path),
                 processing_status=DocumentStatus.PENDING,
+                user_id=self.user_id,
             )
             self.db.add(document)
 
@@ -194,6 +229,14 @@ class EmailProcessor:
         return new_emails
 
 
-def get_email_processor(db: Session) -> EmailProcessor:
-    """Factory function for EmailProcessor."""
-    return EmailProcessor(db)
+def get_email_processor(db: Session, user: User) -> EmailProcessor:
+    """Factory function for EmailProcessor.
+
+    Args:
+        db: Database session
+        user: User whose Gmail will be accessed. Must have gmail_token_json set.
+
+    Raises:
+        GmailNotConnectedError: If user hasn't connected their Gmail account.
+    """
+    return EmailProcessor(db, user)

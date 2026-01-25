@@ -14,9 +14,12 @@ class DocumentResponse(DocumentBase):
     id: UUID
     email_id: UUID
     processing_status: DocumentStatus
+    markdown_file_path: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    has_pdf: bool = False
+    has_markdown: bool = False
 
     class Config:
         from_attributes = True

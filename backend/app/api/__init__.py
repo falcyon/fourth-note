@@ -1,8 +1,9 @@
 from fastapi import APIRouter
-from app.api import investments, emails, documents, trigger, status
+from app.api import investments, emails, documents, trigger, status, auth
 
 api_router = APIRouter(prefix="/api/v1")
 
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(investments.router, prefix="/investments", tags=["investments"])
 api_router.include_router(emails.router, prefix="/emails", tags=["emails"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])

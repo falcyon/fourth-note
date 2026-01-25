@@ -1,14 +1,43 @@
 # Fourth Note - Deployment Guide
 
-**Version 1.0.0**
+**Version 1.1.0**
 
-This guide covers two deployment scenarios:
-- [Local Development (Windows 11)](#local-development-windows-11-without-docker) - For testing without Docker
+This guide covers deployment scenarios:
+- [Local Development with Docker (Recommended)](#local-development-with-docker) - Quick start for Windows/Mac
+- [Local Development without Docker](#local-development-windows-11-without-docker) - Manual setup
 - [Production (Ubuntu NUC)](#production-deployment-ubuntu-2404-with-docker) - Docker-based deployment
 
 ---
 
-# Local Development (Windows 11 without Docker)
+## Local Development with Docker
+
+**Recommended for Windows/Mac development.**
+
+### Quick Start
+
+```bash
+# 1. Copy environment template
+cp .env.example .env
+# Edit .env with your Google API credentials
+
+# 2. Start all services
+docker compose -f docker-compose.dev.yml up --build
+
+# 3. Run migrations (first time only)
+docker compose -f docker-compose.dev.yml exec backend alembic upgrade head
+```
+
+Access at: <http://localhost:4444>
+
+### Required Files
+
+- `.env` - Environment variables (copy from .env.example)
+- `credentials.json` - Google Cloud OAuth credentials
+- `token.json` - Gmail OAuth token (run `python scripts/init-oauth.py` to generate)
+
+---
+
+## Local Development (Windows 11 without Docker)
 
 ## Prerequisites
 
@@ -180,7 +209,7 @@ The Vite dev server proxies `/api` requests to the backend automatically.
 
 ---
 
-# Production Deployment (Ubuntu 24.04 with Docker)
+## Production Deployment (Ubuntu 24.04 with Docker)
 
 ## Folder Structure
 
@@ -485,7 +514,7 @@ To access Fourth Note via a subdomain (e.g., `fourthwall.leff.in`), configure ng
 Copy the provided nginx config:
 
 ```bash
-sudo cp ~/fourth-note/deploy/fourthwall.leff.in /etc/nginx/sites-available/
+sudo cp ~/fourth-note/config/nginx/fourthwall.leff.in /etc/nginx/sites-available/
 sudo ln -s /etc/nginx/sites-available/fourthwall.leff.in /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```

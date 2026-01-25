@@ -1,24 +1,24 @@
 # Fourth Note - Architecture Documentation
 
-**Version 1.0.0**
+**Version 1.1.0**
 
 ## System Overview
 
-Fourth Note is a three-tier application designed for automated extraction of investment information from PDF pitch decks received via email.
+Fourth Note is a multi-tenant application for automated extraction of investment information from PDF pitch decks received via email.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Frontend (React)                          │
-│                    Port 80 (nginx reverse proxy)                 │
+│              Port 80 (nginx) + Google Sign-In                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                       Backend (FastAPI)                          │
 │                          Port 8000                               │
-│  ┌──────────────┬──────────────┬──────────────┬───────────────┐ │
-│  │ Gmail Service│ PDF Converter│  Extraction  │   Scheduler   │ │
-│  │              │   (OCR)      │   (Gemini)   │ (APScheduler) │ │
-│  └──────────────┴──────────────┴──────────────┴───────────────┘ │
+│  ┌────────────┬──────────────┬──────────────┬─────────────────┐ │
+│  │Auth Service│ Gmail Service│  Extraction  │    Scheduler    │ │
+│  │ (JWT/OAuth)│              │   (Gemini)   │  (APScheduler)  │ │
+│  └────────────┴──────────────┴──────────────┴─────────────────┘ │
 ├─────────────────────────────────────────────────────────────────┤
-│                     PostgreSQL + pgvector                        │
+│                         PostgreSQL 16                            │
 │                          Port 5432                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -30,6 +30,7 @@ Fourth Note is a three-tier application designed for automated extraction of inv
 | Frontend | React + Vite + TypeScript | Single-page application |
 | Styling | Tailwind CSS | Utility-first CSS framework |
 | Backend | FastAPI (Python 3.11+) | REST API server |
+| Auth | Google Sign-In + JWT | User authentication |
 | Database | PostgreSQL 16 | Primary data store |
 | ORM | SQLAlchemy 2.0 | Database abstraction |
 | Migrations | Alembic | Schema versioning |
@@ -43,11 +44,22 @@ Fourth Note is a three-tier application designed for automated extraction of inv
 ### Entity Relationship Diagram
 
 ```
-┌─────────────┐       ┌─────────────┐       ┌─────────────────┐
-│   emails    │       │  documents  │       │   investments   │
+┌─────────────┐
+│    users    │
+├─────────────┤
+│ id (PK)     │───┐
+│ google_id   │   │
+│ email       │   │
+│ name        │   │
+│ picture_url │   │
+└─────────────┘   │
+                  │ (user_id FK on all tables)
+┌─────────────┐   │   ┌─────────────┐       ┌─────────────────┐
+│   emails    │<──┘   │  documents  │       │   investments   │
 ├─────────────┤       ├─────────────┤       ├─────────────────┤
 │ id (PK)     │──────<│ id (PK)     │──────<│ id (PK)         │
-│ gmail_id    │       │ email_id(FK)│       │ document_id(FK) │
+│ user_id(FK) │       │ email_id(FK)│       │ document_id(FK) │
+│ gmail_id    │       │ user_id(FK) │       │ user_id(FK)     │
 │ subject     │       │ filename    │       │ investment_name │
 │ sender      │       │ markdown    │       │ firm            │
 │ received_at │       │ status      │       │ strategy_desc   │
@@ -57,14 +69,22 @@ Fourth Note is a three-tier application designed for automated extraction of inv
                                             │ liquidity_lock  │
                                             │ target_returns  │
                                             │ raw_json        │
-                                            │ created_at      │
                                             └─────────────────┘
 ```
 
 ### Table Definitions
 
+**users** - Authenticated users (v1.1)
+- `id`: UUID primary key
+- `google_id`: Unique Google account ID
+- `email`: User email address
+- `name`: Display name
+- `picture_url`: Profile picture URL
+- `gmail_token_json`: Per-user Gmail OAuth token (JSONB)
+
 **emails** - Tracks processed Gmail messages
 - `id`: UUID primary key
+- `user_id`: Foreign key to users table (multi-tenant)
 - `gmail_message_id`: Unique Gmail ID (prevents reprocessing)
 - `subject`: Email subject line
 - `sender`: Sender email address
@@ -73,6 +93,7 @@ Fourth Note is a three-tier application designed for automated extraction of inv
 
 **documents** - PDF attachments from emails
 - `id`: UUID primary key
+- `user_id`: Foreign key to users table (multi-tenant)
 - `email_id`: Foreign key to emails table
 - `filename`: Original PDF filename
 - `markdown_content`: Converted markdown text
@@ -80,6 +101,7 @@ Fourth Note is a three-tier application designed for automated extraction of inv
 
 **investments** - Extracted investment data
 - `id`: UUID primary key
+- `user_id`: Foreign key to users table (multi-tenant)
 - `document_id`: Foreign key to documents table
 - 8 extracted fields (investment_name through target_net_returns)
 - `raw_extraction_json`: Complete Gemini response for debugging
@@ -151,6 +173,15 @@ Manages periodic job execution with APScheduler.
 
 ### REST Endpoints
 
+**Authentication (v1.1)**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/auth/login` | Google Sign-In (returns JWT) |
+| GET | `/api/v1/auth/me` | Get current user info |
+
+**Protected Endpoints** (require JWT token)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/investments` | List investments (paginated) |
@@ -159,10 +190,11 @@ Manages periodic job execution with APScheduler.
 | GET | `/api/v1/investments/export/csv` | Export all as CSV |
 | GET | `/api/v1/emails` | List processed emails |
 | GET | `/api/v1/documents/{id}/markdown` | View document markdown |
-| POST | `/api/v1/trigger/fetch-emails` | Manual email fetch |
+| GET | `/api/v1/trigger/fetch-emails/stream` | Manual email fetch (SSE) |
 | GET | `/api/v1/status` | System health status |
 | GET | `/api/v1/scheduler/status` | Scheduler info |
 | GET | `/api/v1/oauth/status` | Gmail connection status |
+| GET | `/api/v1/stats` | Database statistics |
 
 ### Query Parameters (Investments List)
 

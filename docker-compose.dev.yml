@@ -1,3 +1,4 @@
+# Local Windows development - uses local volumes instead of external drive
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,7 +8,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fN4thN0te_db_2025!}
       POSTGRES_DB: ${POSTGRES_DB:-pitchdeck}
     volumes:
-      - /mnt/WD1/fourth-note/postgres:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Expose for debugging
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-pitchdeck}
       interval: 10s
@@ -27,9 +30,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       GMAIL_QUERY_SINCE: ${GMAIL_QUERY_SINCE:-1769126400}
-      SCHEDULER_INTERVAL_HOURS: ${SCHEDULER_INTERVAL_HOURS:-6}
+      SCHEDULER_INTERVAL_HOURS: ${SCHEDULER_INTERVAL_HOURS:-0}
     volumes:
-      - /mnt/WD1/fourth-note/data:/app/data
+      - ./data/emails:/app/data/emails
+      - ./data/markdown:/app/data/markdown
       - ./token.json:/app/data/token.json:ro
       - ./credentials.json:/app/credentials.json:ro
     ports:

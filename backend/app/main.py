@@ -7,7 +7,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
-from app.database import engine, Base
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
@@ -16,8 +15,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    # Startup
-    Base.metadata.create_all(bind=engine)
+    # Startup - tables managed by Alembic migrations
     start_scheduler()
     yield
     # Shutdown

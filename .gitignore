@@ -1,36 +1,58 @@
-# Environment
+# ===========================================
+# Fourth Note - Git Ignore
+# ===========================================
+
+# -------------------------------------------
+# Environment & Secrets (NEVER commit these)
+# -------------------------------------------
 .env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env.local
 
+# Google OAuth credentials
+credentials.json
+token.json
+backend/data/token.json
+*.pem
+*.key
+
+# -------------------------------------------
 # Python
+# -------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 venv/
-ENV/
 .venv/
+ENV/
 pip-log.txt
-pip-delete-this-directory.txt
 .mypy_cache/
 .pytest_cache/
 *.egg-info/
 dist/
 build/
 
-# Node
+# -------------------------------------------
+# Node.js
+# -------------------------------------------
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build outputs
+# -------------------------------------------
+# Build Outputs
+# -------------------------------------------
 frontend/dist/
 *.log
 
-# IDE
+# -------------------------------------------
+# IDE & Editor
+# -------------------------------------------
 .idea/
 .vscode/
 .claude/
@@ -38,29 +60,41 @@ frontend/dist/
 *.swo
 *~
 
-# OS
+# -------------------------------------------
+# Operating System
+# -------------------------------------------
 .DS_Store
 Thumbs.db
+nul
 
+# -------------------------------------------
 # Docker
+# -------------------------------------------
 docker-compose.override.yml
 
-# Credentials (NEVER commit these)
-credentials.json
-token.json
-*.pem
-*.key
-
-# Data directories (managed by Docker volumes)
+# -------------------------------------------
+# Data (managed locally or via Docker volumes)
+# -------------------------------------------
+data/
 backend/data/emails/
 backend/data/markdown/
 
+# -------------------------------------------
+# Old/unused config folders
+# -------------------------------------------
+config/
+
+# -------------------------------------------
 # Database
+# -------------------------------------------
 *.sql
 *.sqlite
 *.db
 
-# Temporary files
+# -------------------------------------------
+# Temporary Files
+# -------------------------------------------
 *.tmp
 *.temp
 .cache/
+webcredentials.json
