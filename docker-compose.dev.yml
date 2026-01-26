@@ -5,7 +5,7 @@ services:
     container_name: fourth-note-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-pitchdeck}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fN4thN0te_db_2025!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fourthnotepwd2025}
       POSTGRES_DB: ${POSTGRES_DB:-pitchdeck}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
@@ -24,7 +24,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-pitchdeck}:${POSTGRES_PASSWORD:-fN4thN0te_db_2025!}@postgres:5432/${POSTGRES_DB:-pitchdeck}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pitchdeck}:${POSTGRES_PASSWORD:-fourthnotepwd2025}@postgres:5432/${POSTGRES_DB:-pitchdeck}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
