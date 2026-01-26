@@ -162,7 +162,7 @@ export default function Dashboard() {
                   <div className="max-h-[3.5rem] overflow-hidden">
                     {inv.leaders ? (
                       <div className="flex flex-wrap gap-1">
-                        {inv.leaders.split(',').map((leader, idx) => (
+                        {inv.leaders.split('|').map((leader, idx) => (
                           <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[100px]">
                             {leader.trim()}
                           </span>

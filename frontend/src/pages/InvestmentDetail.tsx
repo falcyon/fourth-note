@@ -147,9 +147,9 @@ export default function InvestmentDetail() {
     )
   }
 
-  // Parse leaders into array
+  // Parse leaders into array (pipe-separated from Gemini)
   const leaders = investment.leaders
-    ? investment.leaders.split(',').map(l => l.trim()).filter(Boolean)
+    ? investment.leaders.split('|').map(l => l.trim()).filter(Boolean)
     : []
 
   return (
