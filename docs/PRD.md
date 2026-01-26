@@ -369,6 +369,18 @@ App attempts login as `fourthnotetest@gmail.com` on load.
 
 Shows Google Sign-In button if demo user doesn't exist.
 
+#### 4.6.3 Demo Landing Page (v1.1.2)
+
+Hero banner with app description only shows for demo users, hidden for authenticated users.
+
+#### 4.6.4 Separate Dashboard View (v1.1.2)
+
+Dashboard shows "Demo Investments" for demo users, "My Investments" for authenticated users.
+
+#### 4.6.5 User Logout (v1.1.2)
+
+Logout button in user dropdown (only for authenticated users). Returns to demo landing page.
+
 ---
 
 ## Future Features
