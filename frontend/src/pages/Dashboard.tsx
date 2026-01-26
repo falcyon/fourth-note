@@ -145,8 +145,8 @@ export default function Dashboard() {
               className="block bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 transition-colors group"
             >
               <div className="flex items-start gap-6">
-                {/* Primary Info - Grows to fill space */}
-                <div className="flex-[2] min-w-0">
+                {/* Primary Info */}
+                <div className="flex-1 min-w-0">
                   <div className="text-xs text-gray-500 truncate">{inv.firm || 'Unknown Firm'}</div>
                   <h3 className="text-white font-medium group-hover:text-accent-300 transition-colors truncate">
                     {inv.investment_name || 'Unnamed Investment'}
@@ -157,13 +157,13 @@ export default function Dashboard() {
                 </div>
 
                 {/* Leaders */}
-                <div className="hidden lg:block w-[140px] flex-shrink-0">
+                <div className="hidden lg:block w-[200px] flex-shrink-0">
                   <div className="text-xs text-gray-500 mb-1">Leaders</div>
-                  <div className="max-h-[3.5rem] overflow-hidden">
+                  <div className="line-clamp-3 overflow-hidden">
                     {inv.leaders ? (
                       <div className="flex flex-wrap gap-1">
                         {inv.leaders.split('|').map((leader, idx) => (
-                          <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[100px]">
+                          <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px]">
                             {leader.trim()}
                           </span>
                         ))}
