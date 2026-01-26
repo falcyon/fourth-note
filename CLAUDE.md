@@ -142,28 +142,63 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 
 ## Feature Tracking
 
-**IMPORTANT:** `docs/PRD.md` is the source of truth for all features. When the user mentions a feature:
+- **PRD.md** = Planning (what we want to build, with "planned for vX.X")
+- **CHANGELOG.md** = History (what actually shipped, with dates)
 
-- **New feature requests:** Add to PRD.md under the appropriate section with "(planned for vX.X)"
-- **Completed features:** Update the status in PRD.md to "(completed in vX.X)"
-- **Minor updates:** Add under the relevant feature's "Minor updates" section
+When completing a feature:
+
+1. Update PRD.md status from "planned" to "completed in vX.X"
+2. Add entry to CHANGELOG.md under `[Unreleased]`
 
 ## Version Management
 
-**IMPORTANT:** With each git push that includes code changes, increment the version number:
+**IMPORTANT:** Use git tags and CHANGELOG.md for version tracking.
 
-- **Patch version** (v1.1.0 → v1.1.1): Bug fixes, minor tweaks
-- **Minor version** (v1.1 → v1.2): New features, significant changes
-- **Major version** (v1.x → v2.0): Breaking changes, major rewrites
+### When to Release
 
-Update the version in:
+- **Patch** (v1.1.1 → v1.1.2): Bug fixes, minor UI tweaks
+- **Minor** (v1.1 → v1.2): New features, significant changes
+- **Major** (v1.x → v2.0): Breaking changes, major rewrites
 
-1. `README.md` - Current Version section
-2. `docs/PRD.md` - Update feature statuses as needed. Add any changes made in their appropriate places.
+### Release Steps
+
+1. Update `CHANGELOG.md`:
+   - Move items from `[Unreleased]` to new version section
+   - Add release date
+   - Categorize changes: Added, Changed, Fixed, Removed
+
+2. Update `README.md` version number
+
+3. Commit and tag:
+
+   ```bash
+   git add -A
+   git commit -m "Release v1.1.2"
+   git tag -a v1.1.2 -m "Demo mode improvements"
+   git push origin main --tags
+   ```
+
+### Change Categories
+
+- **Added**: New features
+- **Changed**: Changes to existing functionality
+- **Fixed**: Bug fixes
+- **Removed**: Removed features
+- **Security**: Security-related changes
+
+### Git Push Policy
+
+**IMPORTANT:** Do NOT automatically push to git. Only push when:
+
+1. A meaningful, complete change has been made (not partial work)
+2. The user explicitly asks to push
+
+Wait for user confirmation before running `git push`. It's fine to commit locally, but pushing should be deliberate.
 
 ## Documentation
 
-- `README.md` - Project overview and current features
-- `docs/PRD.md` - Product Requirements Document (source of truth for all features)
+- `README.md` - Project overview and setup
+- `CHANGELOG.md` - Version history (what changed when)
+- `docs/PRD.md` - Product requirements (feature planning)
 - `docs/DEPLOYMENT.md` - Deployment instructions
 - `docs/ARCHITECTURE.md` - System architecture
