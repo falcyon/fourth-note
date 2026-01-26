@@ -283,6 +283,10 @@ Automatically scroll to show latest entry.
 
 Show "(4/40)" instead of multiple log lines per page.
 
+### 3.8 UI Redesign from Figma (planned for v2.0)
+
+Replace current Claude Code-generated UI with professional design from Figma mockups. Current UI is functional with readability improvements but lacks polished visual design.
+
 ---
 
 ## 4. User Authentication & Multi-Tenancy (completed in v1.1)
