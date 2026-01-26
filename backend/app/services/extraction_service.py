@@ -17,6 +17,7 @@ from app.models.field_value import FieldValue
 from app.models.user import User
 from app.services.pdf_converter import get_pdf_converter
 from app.services.progress import get_progress_tracker
+from app.services.packet_service import get_packet_service
 
 settings = get_settings()
 
@@ -25,9 +26,9 @@ FIELDS_FORMATS = {
     "Investment": "No specific format",
     "Firm": "No specific format",
     "Strategy Description": "No specific format",
-    "Leaders/PM/CEO": "If multiple people, separate with commas",
+    "Leaders/PM/CEO": "If multiple people, separate with pipe character |",
     "Management Fees": "No specific format",
-    "Incentive Fees": "Format as 'x% Pref and then x% incentive fee', e.g., '8% Pref and 20% incentive fee'",
+    "Incentive Fees": "Format as 'x% Pref | x% incentive fee', e.g., '8% Pref | 20% incentive fee'",
     "Liquidity/Lock": "No specific format",
     "Target Net Returns": "Format as percentage or range, e.g., '10-12%'",
 }
@@ -241,6 +242,10 @@ class ExtractionService:
 
             document.processing_status = DocumentStatus.COMPLETED.value
             self.db.commit()
+
+            # Generate/update the markdown packet for this investment
+            packet_service = get_packet_service(self.db)
+            packet_service.generate_packet(investment.id)
 
             investment_name = mapped_fields.get("investment_name", "Unknown")
             firm = mapped_fields.get("firm", "Unknown")

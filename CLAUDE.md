@@ -103,6 +103,24 @@ Access at: http://localhost:4444
 - `GET /api/v1/trigger/fetch-emails/stream` - Trigger email fetch (SSE)
 - `GET /api/v1/status` - Health check
 
+## Development & Testing
+
+**IMPORTANT:** All building and testing must be done through Docker containers. Do not run `npm run build`, `tsc`, or other build commands directly on the host machine.
+
+```bash
+# Build and test frontend changes
+docker compose -f docker-compose.dev.yml build frontend
+docker compose -f docker-compose.dev.yml up -d
+
+# Build and test backend changes
+docker compose -f docker-compose.dev.yml build backend
+docker compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker compose -f docker-compose.dev.yml logs -f frontend
+docker compose -f docker-compose.dev.yml logs -f backend
+```
+
 ## Database Migrations
 
 ```bash

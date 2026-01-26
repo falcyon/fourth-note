@@ -1,21 +1,83 @@
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Dashboard from './pages/Dashboard'
 import InvestmentDetail from './pages/InvestmentDetail'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import ProtectedRoute from './components/ProtectedRoute'
-import UserMenu from './components/UserMenu'
+
+function UserDropdown() {
+  const { user } = useAuth()
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  if (!user) return null
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+      >
+        {user.picture_url ? (
+          <img
+            src={user.picture_url}
+            alt={user.name || user.email}
+            className="w-9 h-9 rounded-full border-2 border-white/30"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-full bg-accent/80 flex items-center justify-center text-white border-2 border-white/30">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+        )}
+        <svg className={`w-4 h-4 text-white/70 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-1 z-50">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="text-sm font-medium text-gray-900">{user.name || 'User'}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+            <span className="inline-block mt-1 text-xs bg-accent/10 text-accent px-2 py-0.5 rounded">Demo</span>
+          </div>
+          <button
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/settings')
+            }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Settings
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function AppContent() {
   const location = useLocation()
   const { user } = useAuth()
-
-  const isActive = (path: string) => {
-    return location.pathname === path
-      ? 'bg-blue-700 text-white'
-      : 'text-blue-100 hover:bg-blue-600'
-  }
 
   // Don't show navigation on login page
   if (location.pathname === '/login') {
@@ -27,39 +89,25 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="bg-blue-800 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="text-white font-bold text-xl">
-                Fourth Note
-              </Link>
-              {user && (
-                <div className="flex space-x-2">
-                  <Link
-                    to="/"
-                    className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/')}`}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/settings')}`}
-                  >
-                    Settings
-                  </Link>
-                </div>
-              )}
-            </div>
-            {user && <UserMenu />}
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1730] to-[#0d0a15]">
+      {/* Minimal Top Bar */}
+      <header className="fixed top-0 left-0 right-0 z-40 px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo - extreme left */}
+          <Link to="/" className="text-white font-semibold text-xl hover:text-accent-300 transition-colors">
+            Fourth Note
+          </Link>
+
+          {/* User Dropdown - extreme right */}
+          {user && <UserDropdown />}
         </div>
-      </nav>
+      </header>
+
+      {/* Spacer for fixed header */}
+      <div className="h-16"></div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4">
+      <main className="max-w-7xl mx-auto pb-6 px-4">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

@@ -10,7 +10,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [sortBy, setSortBy] = useState('investment_name')
+  const [sortBy, setSortBy] = useState('updated_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const fetchData = useCallback(async () => {
@@ -45,18 +45,24 @@ export default function Dashboard() {
     }
   }
 
-  const SortIcon = ({ column }: { column: string }) => {
-    if (sortBy !== column) return null
-    return <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-  }
+  const SortButton = ({ column, label }: { column: string; label: string }) => (
+    <button
+      onClick={() => handleSort(column)}
+      className={`text-xs uppercase tracking-wider transition-colors ${
+        sortBy === column ? 'text-accent-300' : 'text-gray-500 hover:text-gray-300'
+      }`}
+    >
+      {label} {sortBy === column && (sortOrder === 'asc' ? '↑' : '↓')}
+    </button>
+  )
 
   return (
     <div>
       {/* Demo Hero Section */}
-      <div className="bg-gradient-to-r from-blue-800 to-blue-600 rounded-lg p-8 mb-8 text-white">
+      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-8 mb-8 text-white border border-white/10">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-4">Fourth Note</h1>
-          <p className="text-xl text-blue-100 mb-6">
+          <p className="text-xl text-gray-400 mb-6">
             Your centralized brain for investment tracking. Automatically fetch pitch decks from your email,
             extract key metrics with AI, and keep all your investment data organized in one place.
           </p>
@@ -64,7 +70,7 @@ export default function Dashboard() {
             href="https://accounts.google.com/signin"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center px-6 py-3 bg-white text-blue-800 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-accent text-white font-semibold rounded-lg hover:bg-accent-600 transition-colors"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -74,9 +80,9 @@ export default function Dashboard() {
             </svg>
             Sign in with Google
           </a>
-          <p className="mt-4 text-sm text-blue-200">
-            The table below shows a demo account. Send an investment pitch to{' '}
-            <span className="font-semibold text-white">fourthnotetest@gmail.com</span>{' '}
+          <p className="mt-4 text-sm text-gray-500">
+            The list below shows a demo account. Send an investment pitch to{' '}
+            <span className="font-semibold text-accent-300">fourthnotetest@gmail.com</span>{' '}
             to see it in action!
           </p>
         </div>
@@ -84,20 +90,20 @@ export default function Dashboard() {
 
       {/* Dashboard Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Demo Investments</h2>
-        <div className="flex items-center space-x-4">
+        <h2 className="text-2xl font-bold text-white">Demo Investments</h2>
+        <div className="flex items-center space-x-3">
           <TriggerButton onComplete={fetchData} />
           <button
             onClick={() => api.exportCsv()}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            className="px-4 py-2 bg-white/10 text-white rounded-md hover:bg-white/20 transition-colors border border-white/10"
           >
             Export CSV
           </button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Search and Sort */}
+      <div className="flex flex-wrap items-center gap-4 mb-4">
         <input
           type="text"
           placeholder="Search investments..."
@@ -106,116 +112,109 @@ export default function Dashboard() {
             setSearch(e.target.value)
             setPage(1)
           }}
-          className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 min-w-[200px] max-w-md px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent"
         />
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-gray-500">Sort:</span>
+          <SortButton column="updated_at" label="Updated" />
+          <SortButton column="investment_name" label="Name" />
+          <SortButton column="firm" label="Firm" />
+        </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+        <div className="mb-4 p-4 bg-red-500/20 text-red-300 rounded-md border border-red-500/30">
           {error}
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  onClick={() => handleSort('investment_name')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  Investment <SortIcon column="investment_name" />
-                </th>
-                <th
-                  onClick={() => handleSort('firm')}
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                >
-                  Firm <SortIcon column="firm" />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Strategy
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Leaders
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mgmt Fees
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Incentive
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Liquidity
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Target Returns
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                    Loading...
-                  </td>
-                </tr>
-              ) : data?.items.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                    No investments found. Click "Fetch Emails" to process new pitch decks.
-                  </td>
-                </tr>
-              ) : (
-                data?.items.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <Link
-                        to={`/investment/${inv.id}`}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        {inv.investment_name || 'Unnamed'}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.firm || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate" title={inv.strategy_description || ''}>
-                      {inv.strategy_description || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.leaders || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.management_fees || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.incentive_fees || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.liquidity_lock || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {inv.target_net_returns || '-'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Investment Rows */}
+      <div className="space-y-2">
+        {loading ? (
+          <div className="py-12 text-center text-gray-500">Loading...</div>
+        ) : data?.items.length === 0 ? (
+          <div className="py-12 text-center text-gray-500">
+            No investments found. Click "Fetch Emails" to process new pitch decks.
+          </div>
+        ) : (
+          data?.items.map((inv) => (
+            <Link
+              key={inv.id}
+              to={`/investment/${inv.id}`}
+              className="block bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 transition-colors group"
+            >
+              <div className="flex items-start gap-6">
+                {/* Primary Info - Grows to fill space */}
+                <div className="flex-[2] min-w-0">
+                  <div className="text-xs text-gray-500 truncate">{inv.firm || 'Unknown Firm'}</div>
+                  <h3 className="text-white font-medium group-hover:text-accent-300 transition-colors truncate">
+                    {inv.investment_name || 'Unnamed Investment'}
+                  </h3>
+                  {inv.strategy_description && (
+                    <p className="text-sm text-gray-400 mt-1 line-clamp-2">{inv.strategy_description}</p>
+                  )}
+                </div>
 
-        {/* Pagination */}
-        {data && data.pages > 1 && (
+                {/* Leaders */}
+                <div className="hidden lg:block w-[140px] flex-shrink-0">
+                  <div className="text-xs text-gray-500 mb-1">Leaders</div>
+                  <div className="max-h-[3.5rem] overflow-hidden">
+                    {inv.leaders ? (
+                      <div className="flex flex-wrap gap-1">
+                        {inv.leaders.split(',').map((leader, idx) => (
+                          <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[100px]">
+                            {leader.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Metrics - Two columns */}
+                <div className="flex gap-8 text-sm">
+                  {/* Column 1: Mgmt & Incentive */}
+                  <div className="w-[140px]">
+                    <div>
+                      <div className="text-xs text-gray-500">Mgmt</div>
+                      <div className="text-gray-300 truncate">{inv.management_fees || '-'}</div>
+                    </div>
+                    <div className="mt-1">
+                      <div className="text-xs text-gray-500">Incentive</div>
+                      <div className="text-gray-300 truncate">{inv.incentive_fees || '-'}</div>
+                    </div>
+                  </div>
+                  {/* Column 2: Liquidity & Target */}
+                  <div className="w-[140px]">
+                    <div>
+                      <div className="text-xs text-gray-500">Liquidity</div>
+                      <div className="text-gray-300 truncate">{inv.liquidity_lock || '-'}</div>
+                    </div>
+                    <div className="mt-1">
+                      <div className="text-xs text-gray-500">Target</div>
+                      <div className="text-gray-300 truncate">{inv.target_net_returns || '-'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {data && data.pages > 1 && (
+        <div className="mt-4">
           <Pagination
             currentPage={page}
             totalPages={data.pages}
             onPageChange={setPage}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Stats */}
       {data && (
