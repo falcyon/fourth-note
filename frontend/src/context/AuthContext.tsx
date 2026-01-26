@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null
   token: string | null
   isLoading: boolean
+  isDemo: boolean
   demoFailed: boolean
   login: (idToken: string) => Promise<void>
   logout: () => void
@@ -23,11 +24,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const API_BASE = '/api/v1'
 const TOKEN_KEY = 'fourth_note_token'
 const USER_KEY = 'fourth_note_user'
+const DEMO_EMAIL = 'fourthnotetest@gmail.com'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(true)
   const [demoFailed, setDemoFailed] = useState(false)
 
   // Demo login - auto-login without Google OAuth
@@ -44,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json()
         setToken(data.access_token)
         setUser(data.user)
+        setIsDemo(true)
         localStorage.setItem(TOKEN_KEY, data.access_token)
         localStorage.setItem(USER_KEY, JSON.stringify(data.user))
         setDemoFailed(false)
@@ -85,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json()
         setUser(userData)
+        setIsDemo(userData.email === DEMO_EMAIL)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
         setIsLoading(false)
       } else {
@@ -121,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(data.access_token)
       setUser(data.user)
+      setIsDemo(data.user.email === DEMO_EMAIL)
 
       localStorage.setItem(TOKEN_KEY, data.access_token)
       localStorage.setItem(USER_KEY, JSON.stringify(data.user))
@@ -146,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, demoFailed, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isDemo, demoFailed, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -6,7 +6,7 @@
 
 A centralized brain for investors to track every investment. Fourth Note automatically aggregates investment data from multiple sources, extracts key metrics using AI, and provides a unified dashboard for portfolio oversight.
 
-## Current Version: v1.1.1
+## Current Version: v1.1.2
 
 ## Tech Stack
 

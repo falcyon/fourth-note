@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 declare global {
@@ -24,19 +24,23 @@ declare global {
 export default function Login() {
   const { user, isLoading, demoFailed, login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const googleButtonRef = useRef<HTMLDivElement>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
 
-  // Redirect if already logged in
+  // Check if user explicitly wants to sign in with a new account
+  const forceNewLogin = searchParams.get('new') === 'true'
+
+  // Redirect if already logged in (unless forcing new login)
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !isLoading && !forceNewLogin) {
       navigate('/')
     }
-  }, [user, isLoading, navigate])
+  }, [user, isLoading, navigate, forceNewLogin])
 
-  // Initialize Google Sign-In when demo fails
+  // Initialize Google Sign-In when demo fails OR when user explicitly wants to sign in
   useEffect(() => {
-    if (!demoFailed || !googleButtonRef.current) return
+    if ((!demoFailed && !forceNewLogin) || !googleButtonRef.current) return
 
     const initializeGoogle = () => {
       if (!window.google) {
@@ -72,7 +76,7 @@ export default function Login() {
     }
 
     initializeGoogle()
-  }, [demoFailed, login, navigate])
+  }, [demoFailed, forceNewLogin, login, navigate])
 
   // Show loading while checking demo login
   if (isLoading) {
@@ -93,8 +97,8 @@ export default function Login() {
     )
   }
 
-  // Demo failed - show Google Sign-In
-  if (demoFailed) {
+  // Show Google Sign-In when demo failed OR user explicitly wants to sign in
+  if (demoFailed || forceNewLogin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1730] to-[#0d0a15]">
         <div className="bg-white/10 backdrop-blur-sm p-8 rounded-lg shadow-lg max-w-md w-full border border-white/20">
@@ -107,10 +111,7 @@ export default function Login() {
 
           <div className="text-center mb-6">
             <p className="text-gray-300 text-sm mb-4">
-              Demo account not configured. Sign in with Google to set up.
-            </p>
-            <p className="text-gray-500 text-xs">
-              Sign in with <span className="text-accent-300">fourthnotetest@gmail.com</span> to create the demo account.
+              {forceNewLogin ? 'Sign in with your Google account' : 'Demo account not configured. Sign in with Google to set up.'}
             </p>
           </div>
 

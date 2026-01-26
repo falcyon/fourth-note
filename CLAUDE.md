@@ -3,6 +3,7 @@
 ## Project Overview
 
 Fourth Note is an investment tracking application that:
+
 1. Fetches investor update emails from Gmail
 2. Extracts PDF attachments and converts to text (with OCR)
 3. Uses Gemini AI to extract structured investment data
@@ -158,7 +159,7 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 Update the version in:
 
 1. `README.md` - Current Version section
-2. `docs/PRD.md` - Update feature statuses as needed
+2. `docs/PRD.md` - Update feature statuses as needed. Add any changes made in their appropriate places.
 
 ## Documentation
 
