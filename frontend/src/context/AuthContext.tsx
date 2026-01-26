@@ -12,6 +12,7 @@ interface AuthContextType {
   user: User | null
   token: string | null
   isLoading: boolean
+  demoFailed: boolean
   login: (idToken: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [demoFailed, setDemoFailed] = useState(false)
 
   // Demo login - auto-login without Google OAuth
   const demoLogin = useCallback(async () => {
@@ -44,9 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         localStorage.setItem(TOKEN_KEY, data.access_token)
         localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+        setDemoFailed(false)
+      } else {
+        setDemoFailed(true)
       }
     } catch {
-      // Demo login failed silently
+      setDemoFailed(true)
     } finally {
       setIsLoading(false)
     }
@@ -141,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, demoFailed, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
