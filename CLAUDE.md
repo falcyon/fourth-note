@@ -142,3 +142,25 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 ## Feature Tracking
 
 **IMPORTANT:** Whenever the user mentions a feature they'd like in the future, add it to `docs/TODO.md` under the appropriate version section. This ensures no feature requests are lost.
+
+## Version Management
+
+**IMPORTANT:** With each git push, increment the version number appropriately:
+
+- **Patch version** (v1.1.0 → v1.1.1): Bug fixes, minor tweaks
+- **Minor version** (v1.1 → v1.2): New features, significant changes
+- **Major version** (v1.x → v2.0): Breaking changes, major rewrites
+
+Update the version in:
+
+1. `README.md` - Current Version section
+2. `docs/PRD.md` - Add new features to appropriate version section
+3. `docs/TODO.md` - Mark completed features
+
+## Documentation
+
+- `README.md` - Project overview and current features
+- `docs/PRD.md` - Product Requirements Document with full feature history
+- `docs/TODO.md` - Implementation progress and task tracking
+- `docs/DEPLOYMENT.md` - Deployment instructions
+- `docs/ARCHITECTURE.md` - System architecture
