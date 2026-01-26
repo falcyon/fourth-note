@@ -40,7 +40,6 @@ Access at: `http://localhost:4444`
 | [PRD.md](docs/PRD.md) | Product Requirements - complete feature list with versions |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, database schema, API design |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment instructions |
-| [TODO.md](docs/TODO.md) | Implementation progress tracking |
 
 ## Environment Variables
 
