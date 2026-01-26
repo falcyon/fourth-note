@@ -142,23 +142,23 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 
 ## Feature Tracking
 
-- **PRD.md** = Planning (what we want to build, with "planned for vX.X")
-- **CHANGELOG.md** = History (what actually shipped, with dates)
+- **PRD.md** = Planning document. Uses simple versioning (v1.0, v1.1, v2.0)
+- **CHANGELOG.md** = Release history. Uses semver (v1.1.0, v1.1.1, v1.2.0)
 
 When completing a feature:
 
-1. Update PRD.md status from "planned" to "completed in vX.X"
-2. Add entry to CHANGELOG.md under `[Unreleased]`
+1. Update PRD.md with the major.minor version (e.g., "v1.1")
+2. Add entry to CHANGELOG.md under `[Unreleased]` with full semver on release
 
 ## Version Management
 
 **IMPORTANT:** Use git tags and CHANGELOG.md for version tracking.
 
-### When to Release
+### When to Release (CHANGELOG semver)
 
-- **Patch** (v1.1.1 → v1.1.2): Bug fixes, minor UI tweaks
-- **Minor** (v1.1 → v1.2): New features, significant changes
-- **Major** (v1.x → v2.0): Breaking changes, major rewrites
+- **Patch** (1.1.1 → 1.1.2): Bug fixes, minor UI tweaks
+- **Minor** (1.1.0 → 1.2.0): New features, significant changes
+- **Major** (1.x.x → 2.0.0): Breaking changes, major rewrites
 
 ### Release Steps
 
@@ -173,8 +173,8 @@ When completing a feature:
 
    ```bash
    git add -A
-   git commit -m "Release v1.1.2"
-   git tag -a v1.1.2 -m "Demo mode improvements"
+   git commit -m "Release v1.2.0"
+   git tag -a v1.2.0 -m "Brief description"
    git push origin main --tags
    ```
 

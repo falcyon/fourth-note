@@ -1,395 +1,140 @@
 # Fourth Note - Product Requirements Document
 
-This document tracks all features, their requirements, and the versions they were introduced in. It serves as a combined Confluence/Jira-style tracker for the project.
+This document describes the features of Fourth Note, an investment tracking application. It serves as the planning document for what we want to build.
+
+For version history and what actually shipped, see [CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
-## 1. Agentic Engine (completed in v1.0)
+## 1. Agentic Engine
 
-The AI-powered extraction engine that processes documents and extracts structured investment data. Currently uses a single Gemini API call, with plans to evolve into a multi-agent architecture.
+The AI-powered extraction engine processes documents and extracts structured investment data. It receives markdown content from converted PDFs and uses Google Gemini to identify and extract key investment metrics.
 
-### 1.1 AI-Powered Data Extraction (completed in v1.0)
+### 1.1 AI-Powered Data Extraction (v1.0)
 
-Send markdown content to Google Gemini API to extract structured investment data. Returns JSON with key investment fields.
+The extraction service sends markdown content to the Gemini API with a structured prompt requesting JSON output. It extracts the following fields: Investment Name, Firm, Strategy Description, Leaders (pipe-separated for multiple people), Management Fees, Incentive Fees, Liquidity/Lock terms, and Target Returns.
 
-#### 1.1.1 Extracted Fields
-
-- Investment Name
-- Firm
-- Strategy Description
-- Leaders
-- Management Fees
-- Incentive Fees
-- Liquidity/Lock
-- Target Returns
-
-#### 1.1.2 Leaders Separator Update (v1.1)
-
-Changed from comma to pipe (`|`) for multi-value support.
-
-#### 1.1.3 VARCHAR to TEXT Migration (v1.1)
-
-Changed investment fields from VARCHAR(255) to TEXT to handle longer extracted values.
+In v1.1, the leaders field separator was changed from comma to pipe (`|`) to support names containing commas, and all investment fields were migrated from VARCHAR(255) to TEXT to handle longer extracted values.
 
 ### 1.2 Multi-Agent Architecture (planned for v2.0)
 
-Multiple specialized AI agents for different processing tasks instead of a single extraction prompt.
-
-#### 1.2.1 Relevance Agent
-
-Filters irrelevant documents before processing.
-
-#### 1.2.2 Extraction Agent
-
-Structured data extraction from documents.
-
-#### 1.2.3 Validation Agent
-
-Quality checks on extracted data.
+The current single-prompt approach will evolve into a multi-agent system with specialized agents: a Relevance Agent to filter irrelevant documents before processing, an Extraction Agent for structured data extraction, and a Validation Agent for quality checks on extracted data.
 
 ---
 
-## 2. Email-based Document Ingestion (completed in v1.0)
+## 2. Email-based Document Ingestion
 
-The core pipeline that fetches emails from Gmail, extracts PDF attachments, and processes them for investment data extraction.
+The core pipeline fetches emails from Gmail, extracts PDF attachments, converts them to text, and processes them through the AI extraction engine.
 
-### 2.1 Gmail API Integration (completed in v1.0)
+### 2.1 Gmail API Integration (v1.0)
 
-Connect to Gmail via OAuth2 to fetch emails containing investment-related attachments.
+The application connects to Gmail via OAuth2 using the `gmail.readonly` scope. It fetches emails based on a configurable date filter (`GMAIL_QUERY_SINCE` environment variable as Unix timestamp), identifies PDF attachments, and downloads them for processing. Tokens are automatically refreshed when expired.
 
-#### 2.1.1 OAuth2 Authentication
+In v1.1, Gmail connection became per-user, with each user connecting their own Gmail account through the Settings page. OAuth tokens are stored per-user in the database with automatic refresh handling.
 
-Uses `gmail.readonly` scope with automatic token refresh.
+### 2.2 PDF to Markdown Conversion (v1.0)
 
-#### 2.1.2 Date Filter
+PDFs are converted to markdown text for AI processing. The system uses Tesseract OCR to extract text from scanned or image-based PDFs, processing page-by-page by converting each page to an image first. Digital PDFs can have text extracted directly without OCR. In v1.1, markdown files are saved alongside PDFs for reference and debugging.
 
-Configurable via `GMAIL_QUERY_SINCE` environment variable (Unix timestamp).
+### 2.3 Database Storage (v1.0)
 
-#### 2.1.3 Attachment Detection
+All data is stored in PostgreSQL with full CRUD support. The schema includes tables for email metadata (subject, sender, date), documents (PDF files and processing status), and investments (extracted data with field attribution).
 
-Identifies and downloads PDF attachments from emails.
+In v1.1, the schema was redesigned to be investment-centric with field attribution tracking. A users table was added for multi-tenant support, and all tables received a `user_id` foreign key for data isolation.
 
-### 2.2 PDF to Markdown Conversion (completed in v1.0)
+### 2.4 Email Fetch Triggers (v1.0)
 
-Convert PDF documents to markdown text for AI processing.
+Users can trigger email processing on demand via a dashboard button. Progress is streamed in real-time using Server-Sent Events, showing each step: fetching emails, downloading attachments, OCR progress, and AI extraction results.
 
-#### 2.2.1 Tesseract OCR
+A background scheduler (APScheduler) automatically fetches emails at a configurable interval (`SCHEDULER_INTERVAL_HOURS`, default 6 hours in production, disabled in development). The scheduler gracefully shuts down with the application.
 
-Extract text from scanned/image-based PDFs using Tesseract.
+### 2.5 Smart Document Filtering (planned for v2.0)
 
-#### 2.2.2 Direct Text Extraction
+Automatically filter out irrelevant PDF attachments before processing. The system will check attachment filenames and email body/subject for relevance signals, scan PDF content if metadata is unclear, and automatically skip non-investment documents.
 
-Extract text directly from digital PDFs without OCR.
+### 2.6 Multi-Format Support (planned for v2.0)
 
-#### 2.2.3 Page-by-Page Processing
-
-Convert each page to image, then OCR, for reliable extraction.
-
-#### 2.2.4 Markdown File Preservation (v1.1)
-
-Save markdown files alongside PDFs for reference.
-
-### 2.3 Database Storage (completed in v1.0)
-
-Store extracted data in PostgreSQL with full CRUD support.
-
-#### 2.3.1 Email Metadata Table
-
-Stores fetched email information (subject, sender, date).
-
-#### 2.3.2 Documents Table
-
-Stores PDF documents and processing status.
-
-#### 2.3.3 Investments Table
-
-Stores extracted investment data with field attribution.
-
-#### 2.3.4 Users Table (v1.1)
-
-Added for multi-tenant support with Gmail OAuth tokens.
-
-#### 2.3.5 User ID Foreign Keys (v1.1)
-
-All tables have `user_id` column for data isolation.
-
-#### 2.3.6 Investment-Centric Redesign (v1.1)
-
-Redesigned schema with field attribution tracking.
-
-### 2.4 Manual Email Fetch (completed in v1.0)
-
-UI button to trigger email processing on demand.
-
-#### 2.4.1 SSE Progress Streaming
-
-Real-time progress tracking via Server-Sent Events.
-
-#### 2.4.2 Step-by-Step Updates
-
-Shows each step: fetching emails, downloading attachments, OCR progress, AI extraction.
-
-### 2.5 Background Scheduler (completed in v1.0)
-
-APScheduler-based background job for automatic email fetching.
-
-#### 2.5.1 Configurable Interval
-
-Set via `SCHEDULER_INTERVAL_HOURS` (default: 6 hours prod, 0 dev).
-
-#### 2.5.2 Graceful Shutdown
-
-Proper cleanup on application shutdown.
-
-### 2.6 Smart Document Filtering (planned for v2.0)
-
-Automatically filter out irrelevant PDF attachments before processing.
-
-#### 2.6.1 Metadata Check
-
-Check attachment filename and email body/subject for relevance signals.
-
-#### 2.6.2 Content Scan
-
-Scan PDF content if metadata is unclear.
-
-#### 2.6.3 Skip Irrelevant
-
-Automatically skip non-investment PDFs.
-
-### 2.7 Multi-Format Support (planned for v2.0)
-
-Support additional document formats beyond PDF.
-
-#### 2.7.1 PowerPoint Support
-
-Process PPT/PPTX files using markitdown library.
-
-#### 2.7.2 Word Document Support
-
-Process DOC/DOCX files using markitdown library.
+Support additional document formats beyond PDF, including PowerPoint (PPT/PPTX) and Word documents (DOC/DOCX), using the markitdown library for conversion.
 
 ---
 
-## 3. Web Dashboard (completed in v1.0)
+## 3. Web Dashboard
 
-React-based frontend for viewing and managing investment data.
+A React-based frontend for viewing and managing investment data, built with TypeScript, Vite, and Tailwind CSS.
 
-### 3.1 Investment List View (completed in v1.0)
+### 3.1 Investment List View (v1.0)
 
-Main dashboard showing all investments in a sortable, searchable table.
+The main dashboard displays all investments in a sortable, searchable interface. Users can search across all investment fields with full-text search, sort by clicking column headers, and navigate large datasets with pagination controls.
 
-#### 3.1.1 Full-Text Search
+In v1.1, the UI was updated with a modern dark theme and card-based layout for better readability.
 
-Search across all investment fields.
+**Planned for v1.2:** Display all extracted JSON attributes in the table and remove source/extracted date columns.
 
-#### 3.1.2 Column Sorting
+### 3.2 Investment Detail View (v1.0)
 
-Click column headers to sort ascending/descending.
+A detailed view showing all extracted fields for a single investment. In v1.1, field attribution was added to show the source document for each extracted value.
 
-#### 3.1.3 Pagination
+### 3.3 Document Management (v1.1)
 
-Navigate large datasets with page controls.
+The investment detail page shows associated documents with their relationship type. Users can download original PDF files and extracted markdown files.
 
-#### 3.1.4 Dark Theme (v1.1)
-
-Modern dark color scheme with card-based layout.
-
-#### 3.1.5 Dashboard Table Improvements (planned for v1.2)
-
-Display all extracted JSON attributes in the table and remove source/extracted date columns.
-
-### 3.2 Investment Detail View (completed in v1.0)
-
-Detailed view of a single investment showing all extracted fields.
-
-#### 3.2.1 Field Display
-
-Shows all extracted investment fields with values.
-
-#### 3.2.2 Field Attribution (v1.1)
-
-Shows source for each extracted value.
-
-### 3.3 Document Management (completed in v1.1)
-
-View and download documents associated with investments.
-
-#### 3.3.1 Document List
-
-Investment detail page shows associated documents with relationship type.
-
-#### 3.3.2 PDF Download
-
-Download original PDF files.
-
-#### 3.3.3 Markdown Download
-
-Download extracted markdown files.
-
-#### 3.3.4 In-Browser Markdown Preview (planned for v2.0)
-
-View markdown content in browser modal.
-
-#### 3.3.5 In-Browser PDF Viewer (planned for v2.0)
-
-View PDFs directly in browser.
+**Planned for v2.0:** In-browser markdown preview and PDF viewer to view documents without downloading.
 
 ### 3.4 Source Attribution (planned for v2.0)
 
-Show where each extracted value came from in the source document.
+Show where each extracted value came from in the source document. On hover over any field, display a context window with surrounding text from the source.
 
-#### 3.4.1 Hover Context Window
+### 3.5 CSV Export (v1.0)
 
-On hover over any field, show surrounding text from source document.
+Export all investments to a CSV file for spreadsheet analysis and external reporting.
 
-### 3.5 CSV Export (completed in v1.0)
+### 3.6 Settings Page (v1.0)
 
-Export all investments to CSV file for spreadsheet analysis.
+Displays system status including database and Gmail connection status, scheduler information (next run time, last run result), and database statistics (counts of emails, documents, investments).
 
-### 3.6 Settings Page (completed in v1.0)
+In v1.1, Gmail connection UI was added with connect/disconnect buttons for OAuth management.
 
-System status, scheduler info, and configuration display.
+### 3.7 Progress Panel (v1.0)
 
-#### 3.6.1 System Status
+A dashboard panel displaying real-time processing status during email fetch operations, with success/error indicators for each processing step.
 
-Shows database and Gmail connection status.
-
-#### 3.6.2 Scheduler Status
-
-Shows next run time and last run result.
-
-#### 3.6.3 Database Stats
-
-Shows counts of emails, documents, investments.
-
-#### 3.6.4 Gmail Connection UI (v1.1)
-
-Connect/disconnect buttons for Gmail OAuth.
-
-### 3.7 Progress Panel (completed in v1.0)
-
-Dashboard panel displaying processing status during email fetch.
-
-#### 3.7.1 Status Indicators
-
-Success/error indicators for each processing step.
-
-#### 3.7.2 Auto-Scroll (planned for v1.2)
-
-Automatically scroll to show latest entry.
-
-#### 3.7.3 Compact OCR Logs (planned for v1.2)
-
-Show "(4/40)" instead of multiple log lines per page.
+**Planned for v1.2:** Auto-scroll to show latest entry, and compact OCR logs showing "(4/40)" instead of multiple log lines per page.
 
 ### 3.8 UI Redesign from Figma (planned for v2.0)
 
-Replace current Claude Code-generated UI with professional design from Figma mockups. Current UI is functional with readability improvements but lacks polished visual design.
+Replace the current Claude Code-generated UI with professional design from Figma mockups. The current UI is functional with readability improvements but lacks polished visual design.
 
 ---
 
-## 4. User Authentication & Multi-Tenancy (completed in v1.1)
+## 4. User Authentication & Multi-Tenancy
 
 Secure user authentication via Google OAuth2 Sign-In with JWT session management and per-user data isolation.
 
-### 4.1 Google Sign-In (completed in v1.1)
+### 4.1 Google Sign-In (v1.1)
 
-Frontend Google Sign-In button that returns ID token.
+Users authenticate via a Google Sign-In button that returns an ID token. The backend verifies the token's authenticity with Google and creates a user record on first login. JWT session tokens are issued for authenticated sessions, stored in browser localStorage.
 
-#### 4.1.1 ID Token Verification
+### 4.2 Protected Routes (v1.1)
 
-Backend verifies Google ID token authenticity.
+Frontend route guards redirect unauthenticated users to the login page. The API client automatically clears authentication and redirects to login on 401 responses.
 
-#### 4.1.2 User Creation
+### 4.3 Multi-Tenant Data Isolation (v1.1)
 
-Creates user record on first login.
+Each user can only access their own data. All API queries filter by the authenticated user's ID, and all records are linked to the creating user.
 
-### 4.2 JWT Session Tokens (completed in v1.1)
+### 4.4 Demo Mode (v1.1)
 
-Backend issues JWT tokens for authenticated sessions.
+The application supports a demo mode for showcase purposes. On load, the app attempts to auto-login as a demo user (`fourthnotetest@gmail.com`). If the demo user doesn't exist, Google Sign-In is shown.
 
-#### 4.2.1 Token Generation
-
-JWT created with user ID and expiration.
-
-#### 4.2.2 LocalStorage Persistence
-
-Tokens stored in browser localStorage.
-
-### 4.3 Protected Routes (completed in v1.1)
-
-Frontend route guards for authenticated pages.
-
-#### 4.3.1 Redirect to Login
-
-Unauthenticated users redirected to login page.
-
-#### 4.3.2 Auto-Logout on 401
-
-API client clears auth and redirects on 401 responses.
-
-### 4.4 Multi-Tenant Data Isolation (completed in v1.1)
-
-Each user can only access their own data.
-
-#### 4.4.1 Query Filtering
-
-All API queries filter by authenticated user's ID.
-
-#### 4.4.2 Data Ownership
-
-All records linked to creating user.
-
-### 4.5 Per-User Gmail Connection (completed in v1.1)
-
-Each user connects their own Gmail account.
-
-#### 4.5.1 Gmail OAuth Flow
-
-Settings page initiates OAuth with `gmail.readonly` scope.
-
-#### 4.5.2 Token Storage
-
-Gmail tokens stored per-user in database.
-
-#### 4.5.3 Token Auto-Refresh
-
-Expired tokens automatically refreshed.
-
-#### 4.5.4 Connect/Disconnect UI
-
-Settings page shows status with action buttons.
-
-### 4.6 Demo Mode (completed in v1.1)
-
-Automatic login for demo/showcase purposes.
-
-#### 4.6.1 Auto-Login Attempt
-
-App attempts login as `fourthnotetest@gmail.com` on load.
-
-#### 4.6.2 Fallback to Google Sign-In
-
-Shows Google Sign-In button if demo user doesn't exist.
-
-#### 4.6.3 Demo Landing Page (v1.1.2)
-
-Hero banner with app description only shows for demo users, hidden for authenticated users.
-
-#### 4.6.4 Separate Dashboard View (v1.1.2)
-
-Dashboard shows "Demo Investments" for demo users, "My Investments" for authenticated users.
-
-#### 4.6.5 User Logout (v1.1.2)
-
-Logout button in user dropdown (only for authenticated users). Returns to demo landing page.
+Demo users see a hero banner with the app description and a "Sign in with Google" button. Authenticated users see a clean dashboard without the banner, with "My Investments" instead of "Demo Investments" as the header. The logout button (only shown for authenticated users) returns to the demo landing page.
 
 ---
 
 ## Future Features
 
-- **Competitor/Fund Tracking** - Track similar or competing funds using vector embeddings
-- **Semantic Search** - pgvector-based semantic search across all documents
-- **Email Notifications** - Alerts on extraction errors or new investments
-- **Bulk Re-extraction** - Re-process all documents with updated prompts
+These features are under consideration for future versions:
+
+- **Competitor/Fund Tracking** - Track similar or competing funds using vector embeddings for similarity matching
+- **Semantic Search** - pgvector-based semantic search across all documents for natural language queries
+- **Email Notifications** - Alerts on extraction errors or when new investments are detected
+- **Bulk Re-extraction** - Re-process all existing documents with updated prompts when the extraction logic improves
