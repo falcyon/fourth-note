@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { api, InvestmentListResponse } from '../api/client'
 import { useAuth } from '../context/AuthContext'
-import TriggerButton from '../components/TriggerButton'
+import TriggerButton, { ProgressEvent } from '../components/TriggerButton'
 import Pagination from '../components/Pagination'
 
 export default function Dashboard() {
@@ -46,6 +46,14 @@ export default function Dashboard() {
       setSortOrder('asc')
     }
   }
+
+  // Handle progress events - refresh when new investment is created
+  const handleProgress = useCallback((event: ProgressEvent) => {
+    // Refresh list when an extraction creates/updates an investment
+    if (event.step === 'extraction' && event.details?.investment_name) {
+      fetchData()
+    }
+  }, [fetchData])
 
   const SortButton = ({ column, label }: { column: string; label: string }) => (
     <button
@@ -94,7 +102,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-white">{isDemo ? 'Demo Investments' : 'My Investments'}</h2>
         <div className="flex items-center space-x-3">
-          <TriggerButton onComplete={fetchData} />
+          <TriggerButton onComplete={fetchData} onProgress={handleProgress} />
           <button
             onClick={() => api.exportCsv()}
             className="px-4 py-2 bg-white/10 text-white rounded-md hover:bg-white/20 transition-colors border border-white/10"
@@ -162,16 +170,32 @@ export default function Dashboard() {
                 <div className="hidden lg:block w-[200px] flex-shrink-0">
                   <div className="text-xs text-gray-500 mb-1">Leaders</div>
                   <div className="line-clamp-3 overflow-hidden">
-                    {inv.leaders ? (
+                    {inv.leaders_json && inv.leaders_json.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {inv.leaders.split('|').map((leader, idx) => (
-                          <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px]">
-                            {leader.trim()}
-                          </span>
+                        {inv.leaders_json.map((leader, idx) => (
+                          leader.linkedin_url ? (
+                            <a
+                              key={idx}
+                              href={leader.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px] hover:bg-white/20 inline-flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {leader.name}
+                              <svg className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                              </svg>
+                            </a>
+                          ) : (
+                            <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px]">
+                              {leader.name}
+                            </span>
+                          )
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-300">-</span>
+                      <span className="text-gray-300">N/A</span>
                     )}
                   </div>
                 </div>
@@ -182,22 +206,22 @@ export default function Dashboard() {
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Mgmt</div>
-                      <div className="text-gray-300 truncate">{inv.management_fees || '-'}</div>
+                      <div className="text-gray-300 truncate">{inv.management_fees || 'N/A'}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Incentive</div>
-                      <div className="text-gray-300 truncate">{inv.incentive_fees || '-'}</div>
+                      <div className="text-gray-300 truncate">{inv.incentive_fees || 'N/A'}</div>
                     </div>
                   </div>
                   {/* Column 2: Liquidity & Target */}
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Liquidity</div>
-                      <div className="text-gray-300 truncate">{inv.liquidity_lock || '-'}</div>
+                      <div className="text-gray-300 truncate">{inv.liquidity_lock || 'N/A'}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Target</div>
-                      <div className="text-gray-300 truncate">{inv.target_net_returns || '-'}</div>
+                      <div className="text-gray-300 truncate">{inv.target_net_returns || 'N/A'}</div>
                     </div>
                   </div>
                 </div>

@@ -85,6 +85,40 @@ class EmailProcessor:
         except Exception:
             return None
 
+    def _extract_body_text(self, payload: Dict) -> Optional[str]:
+        """Extract plain text body from email payload.
+
+        Looks for text/plain parts, falling back to decoding HTML if needed.
+        Returns first 10000 chars to avoid storing huge email bodies.
+        """
+        text_parts = []
+
+        def scan_parts(part: Dict):
+            mime_type = part.get("mimeType", "")
+            body = part.get("body", {})
+
+            # Check for text/plain content
+            if mime_type == "text/plain" and "data" in body:
+                try:
+                    decoded = base64.urlsafe_b64decode(body["data"]).decode("utf-8", errors="replace")
+                    text_parts.append(decoded)
+                except Exception:
+                    pass
+
+            # Recurse into nested parts
+            if "parts" in part:
+                for sub_part in part["parts"]:
+                    scan_parts(sub_part)
+
+        scan_parts(payload)
+
+        if text_parts:
+            full_text = "\n".join(text_parts)
+            # Limit to 10000 chars to avoid storing huge bodies
+            return full_text[:10000] if len(full_text) > 10000 else full_text
+
+        return None
+
     def _find_pdf_attachments(self, payload: Dict) -> List[Dict[str, str]]:
         """Find all PDF attachments in email payload."""
         attachments = []
@@ -153,12 +187,14 @@ class EmailProcessor:
         subject = self._extract_header(headers, "Subject")
         sender = self._extract_header(headers, "From")
         received_at = self._parse_date(self._extract_header(headers, "Date"))
+        body_text = self._extract_body_text(payload)
 
         # Create email record
         email = Email(
             gmail_message_id=message_id,
             subject=subject,
             sender=sender,
+            body_text=body_text,
             received_at=received_at,
             status=EmailStatus.PROCESSING.value,
             user_id=self.user_id,
@@ -227,6 +263,54 @@ class EmailProcessor:
         })
 
         return new_emails
+
+    def fetch_emails_streaming(self, since_timestamp: Optional[int] = None):
+        """Yield emails one at a time as they're fetched.
+
+        This is a generator that yields each email immediately after it's fetched
+        and saved to the database. The caller can process each email before the
+        next one is fetched, enabling "stream processing" where each email is
+        fully processed to completion before moving to the next.
+
+        Yields:
+            Email: Each email with PDF attachments, one at a time
+        """
+        if since_timestamp is None:
+            since_timestamp = settings.gmail_query_since
+
+        self.progress.emit("gmail", "Connecting to Gmail API...")
+
+        query = f"after:{since_timestamp}"
+        messages = self.gmail.list_messages(query=query)
+        total_messages = len(messages)
+
+        self.progress.emit("gmail", f"Found {total_messages} messages to check", {
+            "total_messages": total_messages
+        })
+
+        emails_with_pdfs = 0
+
+        for i, msg_meta in enumerate(messages):
+            self.progress.emit("fetch", f"Fetching message {i+1}/{total_messages}...", {
+                "current": i + 1,
+                "total": total_messages
+            })
+
+            email = self.process_message(msg_meta["id"])
+            if email:
+                emails_with_pdfs += 1
+                pdf_count = len(email.documents)
+                self.progress.emit("fetch", f"Found email with {pdf_count} PDF(s): {email.subject}", {
+                    "subject": email.subject,
+                    "pdf_count": pdf_count,
+                    "emails_found": emails_with_pdfs
+                })
+                yield email  # Caller processes immediately before we fetch next
+
+        self.progress.emit("fetch", f"Email fetch complete: {emails_with_pdfs} emails with PDFs", {
+            "emails_with_pdfs": emails_with_pdfs,
+            "total_checked": total_messages
+        })
 
 
 def get_email_processor(db: Session, user: User) -> EmailProcessor:

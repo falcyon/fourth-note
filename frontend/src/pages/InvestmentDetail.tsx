@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, InvestmentDetail as InvestmentDetailType, Investment, InvestmentDocument, FieldWithHistory } from '../api/client'
+import { api, InvestmentDetail as InvestmentDetailType, Investment, InvestmentDocument, FieldWithHistory, LeaderInfo } from '../api/client'
 
 // Tooltip component for showing source/history on hover
 function SourceTooltip({
@@ -34,11 +34,17 @@ function SourceTooltip({
           {source.all_values && source.all_values.length > 1 && (
             <div className="border-t border-gray-700 pt-2 mt-2">
               <div className="font-medium mb-1">History:</div>
-              {source.all_values.slice(0, 5).map((val, idx) => (
-                <div key={idx} className="text-gray-300 truncate">
-                  "{val.value}" — {val.source_name || 'Unknown'}
-                </div>
-              ))}
+              {source.all_values.slice(0, 5).map((val, idx) => {
+                // Format value - handle arrays (like leaders_json) by converting to string
+                const displayValue = Array.isArray(val.value)
+                  ? val.value.map((v: LeaderInfo) => v.name).join(', ')
+                  : val.value
+                return (
+                  <div key={idx} className="text-gray-300 truncate">
+                    "{displayValue}" — {val.source_name || 'Unknown'}
+                  </div>
+                )
+              })}
             </div>
           )}
           <div className="absolute bottom-0 left-4 transform translate-y-full">
@@ -147,10 +153,8 @@ export default function InvestmentDetail() {
     )
   }
 
-  // Parse leaders into array (pipe-separated from Gemini)
-  const leaders = investment.leaders
-    ? investment.leaders.split('|').map(l => l.trim()).filter(Boolean)
-    : []
+  // Get leaders from JSON array
+  const leaders: LeaderInfo[] = investment.leaders_json || []
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -241,27 +245,55 @@ export default function InvestmentDetail() {
           </div>
         )}
 
-        {/* Leaders - Chips */}
+        {/* Leaders - Chips with LinkedIn links */}
         {(editing || leaders.length > 0) && (
           <div className="mb-4">
             {editing ? (
-              <input
-                type="text"
-                value={formData.leaders || ''}
-                onChange={(e) => handleChange('leaders', e.target.value)}
+              <textarea
+                value={formData.leaders_json
+                  ? formData.leaders_json.map(l =>
+                      l.linkedin_url ? `${l.name} | ${l.linkedin_url}` : l.name
+                    ).join('\n')
+                  : ''
+                }
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n').filter(Boolean)
+                  const parsed: LeaderInfo[] = lines.map(line => {
+                    const [name, url] = line.split('|').map(s => s.trim())
+                    return { name: name || '', linkedin_url: url || null }
+                  })
+                  setFormData(prev => ({ ...prev, leaders_json: parsed }))
+                }}
+                rows={3}
                 className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
-                placeholder="Leaders (comma-separated)"
+                placeholder="One leader per line. Format: Name | LinkedIn URL (optional)"
               />
             ) : (
-              <SourceTooltip source={getFieldSource('leaders')}>
-                <div className="flex flex-wrap gap-2 cursor-help">
+              <SourceTooltip source={getFieldSource('leaders_json')}>
+                <div className="flex flex-wrap gap-2">
                   {leaders.map((leader, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-primary/50 text-white text-sm rounded-full"
-                    >
-                      {leader}
-                    </span>
+                    leader.linkedin_url ? (
+                      <a
+                        key={idx}
+                        href={leader.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 bg-primary/50 text-white text-sm rounded-full hover:bg-primary/70 transition-colors inline-flex items-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {leader.name}
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                        </svg>
+                      </a>
+                    ) : (
+                      <span
+                        key={idx}
+                        className="px-3 py-1 bg-primary/50 text-white text-sm rounded-full"
+                      >
+                        {leader.name}
+                      </span>
+                    )
                   ))}
                 </div>
               </SourceTooltip>
@@ -290,7 +322,7 @@ export default function InvestmentDetail() {
                 <SourceTooltip source={getFieldSource(key)}>
                   <div className="text-white text-sm cursor-help">
                     {(investment[key as keyof Investment] as string) || (
-                      <span className="text-gray-500 italic">-</span>
+                      <span className="text-gray-500 italic">N/A</span>
                     )}
                   </div>
                 </SourceTooltip>

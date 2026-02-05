@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    # OpenAI API (for LinkedIn lookups - deprecated, use Perplexity)
+    openai_api_key: str = ""
+
+    # Perplexity API (for LinkedIn lookups with better web search)
+    perplexity_api_key: str = ""
+
     # JWT Authentication
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"

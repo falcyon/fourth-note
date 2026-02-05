@@ -122,15 +122,19 @@ class PacketService:
         lines.append("")
 
         # Leaders
-        if investment.leaders:
+        if investment.leaders_json:
             lines.append("---")
             lines.append("")
             lines.append("## Leadership")
             lines.append("")
-            for leader in investment.leaders.split(","):
-                leader = leader.strip()
-                if leader:
-                    lines.append(f"- {leader}")
+            for leader in investment.leaders_json:
+                name = leader.get("name", "")
+                linkedin_url = leader.get("linkedin_url")
+                if name:
+                    if linkedin_url:
+                        lines.append(f"- [{name}]({linkedin_url})")
+                    else:
+                        lines.append(f"- {name}")
             lines.append("")
 
         # Strategy

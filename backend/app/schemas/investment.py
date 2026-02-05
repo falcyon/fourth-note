@@ -1,14 +1,20 @@
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
+
+
+class LeaderInfo(BaseModel):
+    """Individual leader with optional LinkedIn profile."""
+    name: str
+    linkedin_url: Optional[str] = None
 
 
 class InvestmentBase(BaseModel):
     investment_name: Optional[str] = None
     firm: Optional[str] = None
     strategy_description: Optional[str] = None
-    leaders: Optional[str] = None
+    leaders_json: Optional[List[LeaderInfo]] = None
     management_fees: Optional[str] = None
     incentive_fees: Optional[str] = None
     liquidity_lock: Optional[str] = None
@@ -25,7 +31,7 @@ class InvestmentUpdate(BaseModel):
     investment_name: Optional[str] = None
     firm: Optional[str] = None
     strategy_description: Optional[str] = None
-    leaders: Optional[str] = None
+    leaders_json: Optional[List[LeaderInfo]] = None
     management_fees: Optional[str] = None
     incentive_fees: Optional[str] = None
     liquidity_lock: Optional[str] = None
@@ -37,7 +43,7 @@ class InvestmentUpdate(BaseModel):
 # Field attribution schemas
 class FieldAttribution(BaseModel):
     """Attribution info for a single field value."""
-    value: Optional[str] = None
+    value: Optional[Any] = None  # Can be string or JSON (for leaders_json)
     source_type: str
     source_id: Optional[UUID] = None
     source_name: Optional[str] = None

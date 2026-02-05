@@ -16,6 +16,7 @@ class EmailStatus(str, enum.Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    SKIPPED = "skipped"  # Triaged out as not investment-related
 
 
 class Email(Base):
@@ -26,6 +27,7 @@ class Email(Base):
     gmail_message_id = Column(String(255), unique=True, nullable=False, index=True)
     subject = Column(String(500))
     sender = Column(String(255))
+    body_text = Column(String, nullable=True)  # Plain text email body for triage
     received_at = Column(DateTime)
     # Store as string, use enum values (lowercase)
     status = Column(String(50), default=EmailStatus.PENDING.value, nullable=False)

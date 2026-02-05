@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 
 const TOKEN_KEY = 'fourth_note_token'
 
-interface ProgressEvent {
+export interface ProgressEvent {
   step: string
   message: string
   details: Record<string, unknown>
@@ -11,9 +11,10 @@ interface ProgressEvent {
 
 interface TriggerButtonProps {
   onComplete?: () => void
+  onProgress?: (event: ProgressEvent) => void
 }
 
-export default function TriggerButton({ onComplete }: TriggerButtonProps) {
+export default function TriggerButton({ onComplete, onProgress }: TriggerButtonProps) {
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<ProgressEvent[]>([])
   const [showProgress, setShowProgress] = useState(false)
@@ -93,6 +94,11 @@ export default function TriggerButton({ onComplete }: TriggerButtonProps) {
             try {
               const data: ProgressEvent = JSON.parse(line.slice(6))
               setProgress(prev => [...prev, data])
+
+              // Notify parent of progress (for real-time updates)
+              if (onProgress) {
+                onProgress(data)
+              }
 
               if (data.step === 'complete' || data.step === 'error') {
                 setLoading(false)

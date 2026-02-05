@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+import sqlalchemy as sa
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -110,7 +111,7 @@ def _investment_to_response(inv: Investment) -> InvestmentResponse:
         investment_name=inv.investment_name,
         firm=inv.firm,
         strategy_description=inv.strategy_description,
-        leaders=inv.leaders,
+        leaders_json=inv.leaders_json,
         management_fees=inv.management_fees,
         incentive_fees=inv.incentive_fees,
         liquidity_lock=inv.liquidity_lock,
@@ -152,7 +153,7 @@ async def list_investments(
                 Investment.investment_name.ilike(search_term),
                 Investment.firm.ilike(search_term),
                 Investment.strategy_description.ilike(search_term),
-                Investment.leaders.ilike(search_term),
+                Investment.leaders_json.cast(sa.Text).ilike(search_term),
             )
         )
 
@@ -212,11 +213,22 @@ async def export_csv(
 
     # Data rows
     for inv in investments:
+        # Format leaders from JSON: "Name (LinkedIn)" or just "Name"
+        leaders_str = ""
+        if inv.leaders_json:
+            leader_parts = []
+            for leader in inv.leaders_json:
+                if leader.get("linkedin_url"):
+                    leader_parts.append(f"{leader['name']} ({leader['linkedin_url']})")
+                else:
+                    leader_parts.append(leader.get("name", ""))
+            leaders_str = " | ".join(leader_parts)
+
         writer.writerow([
             inv.investment_name or "",
             inv.firm or "",
             inv.strategy_description or "",
-            inv.leaders or "",
+            leaders_str,
             inv.management_fees or "",
             inv.incentive_fees or "",
             inv.liquidity_lock or "",
@@ -262,7 +274,7 @@ async def get_investment(
         investment_name=investment.investment_name,
         firm=investment.firm,
         strategy_description=investment.strategy_description,
-        leaders=investment.leaders,
+        leaders_json=investment.leaders_json,
         management_fees=investment.management_fees,
         incentive_fees=investment.incentive_fees,
         liquidity_lock=investment.liquidity_lock,
@@ -302,7 +314,7 @@ async def update_investment(
 
     # Fields that should create field_values
     tracked_fields = {
-        "investment_name", "firm", "strategy_description", "leaders",
+        "investment_name", "firm", "strategy_description", "leaders_json",
         "management_fees", "incentive_fees", "liquidity_lock", "target_net_returns"
     }
 
@@ -318,11 +330,18 @@ async def update_investment(
                 FieldValue.is_current == True
             ).update({"is_current": False})
 
+            # Serialize JSON fields to string for storage
+            import json
+            stored_value = (
+                json.dumps(value) if field == "leaders_json" and isinstance(value, list)
+                else str(value) if value else None
+            )
+
             # Create new field value with manual source
             fv = FieldValue(
                 investment_id=investment.id,
                 field_name=field,
-                field_value=value,
+                field_value=stored_value,
                 source_type="manual",
                 source_name="Manual Edit",
                 is_current=True,
@@ -345,7 +364,7 @@ async def update_investment(
         investment_name=investment.investment_name,
         firm=investment.firm,
         strategy_description=investment.strategy_description,
-        leaders=investment.leaders,
+        leaders_json=investment.leaders_json,
         management_fees=investment.management_fees,
         incentive_fees=investment.incentive_fees,
         liquidity_lock=investment.liquidity_lock,

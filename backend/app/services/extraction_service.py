@@ -1,5 +1,6 @@
-"""AI-powered extraction service using Google Gemini."""
+"""AI-powered extraction service using Google Gemini and OpenAI."""
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -8,6 +9,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from google import genai
+from openai import OpenAI
 
 from app.config import get_settings
 from app.models.document import Document, DocumentStatus
@@ -26,7 +28,22 @@ FIELDS_FORMATS = {
     "Investment": "No specific format",
     "Firm": "No specific format",
     "Strategy Description": "No specific format",
-    "Leaders/PM/CEO": "If multiple people, separate with pipe character |",
+    "Leaders/PM/CEO": """Extract ALL information about each leader/executive mentioned in the document.
+For each person, include as much detail as possible:
+- Full name
+- Current title/role at this firm
+- Previous titles/roles and companies
+- Education (universities, degrees)
+- Years of experience
+- Any other biographical details mentioned
+Return as a JSON array of objects with these keys:
+- 'name': Full name
+- 'title': Current title/role
+- 'company': Current company/firm
+- 'previous_roles': Array of previous positions (e.g., ["CEO at XYZ Corp", "VP at ABC Inc"])
+- 'education': Array of education (e.g., ["MBA Harvard", "BS MIT"])
+- 'background': Any other relevant background info as a string
+Example: [{"name": "John Smith", "title": "CEO", "company": "Acme Capital", "previous_roles": ["Partner at BigFund LP"], "education": ["MBA Wharton"], "background": "20 years in private equity"}]""",
     "Management Fees": "No specific format",
     "Incentive Fees": "Format as 'x% Pref | x% incentive fee', e.g., '8% Pref | 20% incentive fee'",
     "Liquidity/Lock": "No specific format",
@@ -50,7 +67,7 @@ FIELD_MAPPING = {
     "Investment": "investment_name",
     "Firm": "firm",
     "Strategy Description": "strategy_description",
-    "Leaders/PM/CEO": "leaders",
+    "Leaders/PM/CEO": "leaders_json",
     "Management Fees": "management_fees",
     "Incentive Fees": "incentive_fees",
     "Liquidity/Lock": "liquidity_lock",
@@ -66,6 +83,7 @@ class ExtractionService:
         self.user = user
         self.user_id = user.id if user else None
         self.client = genai.Client(api_key=settings.google_api_key)
+        self.openai_client = OpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
         self.pdf_converter = get_pdf_converter()
         self.progress = get_progress_tracker()
 
@@ -77,21 +95,143 @@ class ExtractionService:
             raise ValueError("No JSON object found in response")
         return json.loads(match.group(0))
 
-    def _map_fields(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _map_fields(self, raw_data: Dict[str, Any], leaders_with_linkedin: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Map extracted field names to database column names."""
-        return {
-            db_field: str(raw_data.get(api_field)) if raw_data.get(api_field) else None
-            for api_field, db_field in FIELD_MAPPING.items()
-        }
+        mapped = {}
+        for api_field, db_field in FIELD_MAPPING.items():
+            value = raw_data.get(api_field)
+            if value is None:
+                mapped[db_field] = None
+            elif db_field == "leaders_json":
+                # Use the leaders with LinkedIn URLs if provided (from second pass)
+                if leaders_with_linkedin is not None:
+                    mapped[db_field] = leaders_with_linkedin
+                elif isinstance(value, list):
+                    # First pass: just extract names for now
+                    mapped[db_field] = [
+                        {"name": item.get("name", ""), "linkedin_url": None}
+                        for item in value if isinstance(item, dict) and item.get("name")
+                    ]
+                elif isinstance(value, str):
+                    # Fallback: Gemini returned string, parse as pipe-separated
+                    mapped[db_field] = [
+                        {"name": name.strip(), "linkedin_url": None}
+                        for name in value.split("|") if name.strip()
+                    ]
+                else:
+                    mapped[db_field] = None
+            else:
+                mapped[db_field] = str(value)
+        return mapped
+
+    def _lookup_single_linkedin(self, leader: Dict[str, Any], firm_name: str = None) -> Dict[str, str]:
+        """Look up LinkedIn profile for a single leader using OpenAI with web search."""
+        name = leader.get("name", "Unknown")
+
+        if not self.openai_client:
+            print(f"[LinkedIn] {name}: OpenAI client not configured, skipping")
+            return {"name": name, "linkedin_url": None}
+
+        # Build context like the raw PDF text
+        context_parts = [name]
+        if leader.get("title"):
+            context_parts.append(leader["title"])
+        if leader.get("company") or firm_name:
+            context_parts.append(f"at {leader.get('company') or firm_name}")
+        if leader.get("previous_roles"):
+            for role in leader["previous_roles"][:3]:
+                context_parts.append(role)
+        if leader.get("education"):
+            for edu in leader["education"][:2]:
+                context_parts.append(edu)
+        if leader.get("background"):
+            context_parts.append(leader["background"][:150])
+
+        context = "\n".join(context_parts)
+        print(f"[LinkedIn] Searching (OpenAI): {context[:100]}...")
+
+        try:
+            # Use gpt-5.2 with web search and simple ChatGPT-style prompt
+            response = self.openai_client.responses.create(
+                model="gpt-5.2",
+                tools=[{"type": "web_search_preview"}],
+                input=f"can you find this person's linkedin and give me the link?\n\n{context}"
+            )
+
+            # Get the response text
+            text = response.output_text if hasattr(response, 'output_text') else str(response)
+            print(f"[LinkedIn] {name}: response={text[:300] if text else 'None'}...")
+
+            if not text:
+                return {"name": name, "linkedin_url": None}
+
+            # Extract LinkedIn URL from response
+            url_match = re.search(r'https?://[^\s]*linkedin\.com/in/[^\s\)\"\'\]\>]+', text)
+            if url_match:
+                linkedin_url = url_match.group(0).rstrip('.,;:')
+                print(f"[LinkedIn] {name}: FOUND {linkedin_url}")
+                return {"name": name, "linkedin_url": linkedin_url}
+
+            print(f"[LinkedIn] {name}: no LinkedIn URL in response")
+            return {"name": name, "linkedin_url": None}
+
+        except Exception as e:
+            print(f"[LinkedIn] {name}: error - {e}")
+            import traceback
+            traceback.print_exc()
+
+        return {"name": name, "linkedin_url": None}
+
+    def _lookup_linkedin_profiles(self, leaders: List[Dict[str, Any]], firm_name: str = None) -> List[Dict[str, str]]:
+        """Second pass: Use OpenAI with web search to find LinkedIn profiles for each leader."""
+        if not leaders:
+            return []
+
+        print(f"[LinkedIn Lookup] Searching for {len(leaders)} people using OpenAI web search...")
+
+        results = []
+        for leader in leaders:
+            result = self._lookup_single_linkedin(leader, firm_name)
+            results.append(result)
+
+        found_count = sum(1 for r in results if r.get("linkedin_url"))
+        print(f"[LinkedIn Lookup] Found {found_count}/{len(leaders)} LinkedIn profiles")
+
+        return results
 
     def extract_from_markdown(self, markdown_content: str) -> tuple[Dict[str, Any], Dict[str, Any]]:
-        """Extract investment data from markdown content."""
+        """Extract investment data from markdown content.
+
+        Two-step process:
+        1. Extract all investment fields including detailed leader info
+        2. Use Google Search to find LinkedIn profiles for each leader
+        """
+        # Step 1: Extract all investment data (no search needed)
+        print("[Extraction] Step 1: Extracting investment data...")
         response = self.client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=EXTRACTION_PROMPT + "\n\nDOCUMENT:\n" + markdown_content,
         )
+
         raw_data = self._extract_json(response.text)
-        return self._map_fields(raw_data), raw_data
+        leaders_raw = raw_data.get("Leaders/PM/CEO", [])
+        firm_name = raw_data.get("Firm")
+
+        print(f"[Extraction] Found {len(leaders_raw) if isinstance(leaders_raw, list) else 0} leaders")
+
+        # Log the raw leader data from step 1
+        if isinstance(leaders_raw, list):
+            print(f"[Extraction] Raw leader data from Gemini:")
+            for i, leader in enumerate(leaders_raw[:5]):  # Limit to first 5 to avoid too much output
+                print(f"  {i+1}. {leader}")
+
+        # Step 2: Look up LinkedIn profiles for each leader
+        leaders_with_linkedin = []
+        if isinstance(leaders_raw, list) and leaders_raw:
+            print("[Extraction] Step 2: Looking up LinkedIn profiles...")
+            leaders_with_linkedin = self._lookup_linkedin_profiles(leaders_raw, firm_name)
+
+        return self._map_fields(raw_data, leaders_with_linkedin), raw_data
 
     def _find_matching_investment(self, name: Optional[str], firm: Optional[str], user_id: UUID) -> Optional[Investment]:
         """Try to find an existing investment by name and firm."""
@@ -141,11 +281,17 @@ class ExtractionService:
                 FieldValue.is_current == True
             ).update({"is_current": False})
 
+            # Serialize JSON fields to string for storage
+            stored_value = (
+                json.dumps(field_value) if isinstance(field_value, (list, dict))
+                else str(field_value)
+            )
+
             # Create new field value
             fv = FieldValue(
                 investment_id=investment.id,
                 field_name=field_name,
-                field_value=field_value,
+                field_value=stored_value,
                 source_type="document",
                 source_id=document.id,
                 source_name=document.filename,

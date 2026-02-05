@@ -1,4 +1,5 @@
 """APScheduler integration for periodic email processing."""
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -23,40 +24,70 @@ _last_result: Optional[Dict[str, Any]] = None
 
 
 def _process_user_emails(db, user: User, progress) -> Dict[str, Any]:
-    """Process emails for a single user.
+    """Process emails for a single user using stream processing.
 
-    Returns dict with emails_fetched and investments_extracted counts.
+    Each email is fully processed (triage → extract → linkedin → save) before
+    fetching the next one. This allows emails to appear in the UI one at a time
+    as they complete, rather than all at once at the end.
+
+    Returns dict with emails_fetched, investments_extracted, and emails_skipped counts.
     """
     from app.services.email_processor import get_email_processor, GmailNotConnectedError
-    from app.services.extraction_service import get_extraction_service
+    from app.agents.orchestrator import get_orchestrator
 
-    # Fetch new emails
     processor = get_email_processor(db, user)
-    new_emails = processor.fetch_new_emails()
-    logger.info(f"Fetched {len(new_emails)} new emails for user {user.email}")
+    orchestrator = get_orchestrator(db, user)
 
-    # Process pending documents
-    extractor = get_extraction_service(db, user)
-    investments = extractor.process_pending_documents()
-    logger.info(f"Extracted {len(investments)} new investments for user {user.email}")
+    total_emails = 0
+    total_investments = 0
+    emails_skipped = 0
 
-    # Update email statuses
-    for email in new_emails:
-        all_completed = all(
-            doc.processing_status in ("completed", "failed")
-            for doc in email.documents
-        )
-        if all_completed:
-            has_failures = any(
-                doc.processing_status == "failed"
+    # Stream emails one at a time - process each to completion before fetching next
+    for email in processor.fetch_emails_streaming():
+        total_emails += 1
+
+        try:
+            # Process this email immediately through the full pipeline
+            async def process_one():
+                return await orchestrator.process_email(email, email.documents)
+
+            investments = asyncio.run(process_one())
+            total_investments += len(investments)
+
+            # Check if email was skipped by triage
+            if email.status == EmailStatus.SKIPPED.value:
+                emails_skipped += 1
+                continue
+
+            # Update email status based on document results
+            all_completed = all(
+                doc.processing_status in ("completed", "failed", "skipped")
                 for doc in email.documents
             )
-            email.status = EmailStatus.FAILED.value if has_failures else EmailStatus.COMPLETED.value
+            if all_completed:
+                has_failures = any(
+                    doc.processing_status == "failed"
+                    for doc in email.documents
+                )
+                email.status = EmailStatus.FAILED.value if has_failures else EmailStatus.COMPLETED.value
+                db.commit()
+
+        except Exception as e:
+            logger.error(f"Failed to process email {email.subject}: {e}")
+            import traceback
+            traceback.print_exc()
+            email.status = EmailStatus.FAILED.value
             db.commit()
 
+    logger.info(
+        f"Processed {total_emails} emails for user {user.email}: "
+        f"{total_investments} investments extracted, {emails_skipped} emails skipped"
+    )
+
     return {
-        "emails_fetched": len(new_emails),
-        "investments_extracted": len(investments),
+        "emails_fetched": total_emails,
+        "investments_extracted": total_investments,
+        "emails_skipped": emails_skipped,
     }
 
 
@@ -78,6 +109,7 @@ def run_email_processing(user_id: Optional[UUID] = None):
 
         total_emails = 0
         total_investments = 0
+        total_skipped = 0
 
         if user_id:
             # Process specific user
@@ -93,6 +125,7 @@ def run_email_processing(user_id: Optional[UUID] = None):
             result = _process_user_emails(db, user, progress)
             total_emails = result["emails_fetched"]
             total_investments = result["investments_extracted"]
+            total_skipped = result.get("emails_skipped", 0)
         else:
             # Scheduled job: process all users with Gmail tokens
             users = db.query(User).filter(User.gmail_token_json.isnot(None)).all()
@@ -103,6 +136,7 @@ def run_email_processing(user_id: Optional[UUID] = None):
                     result = _process_user_emails(db, user, progress)
                     total_emails += result["emails_fetched"]
                     total_investments += result["investments_extracted"]
+                    total_skipped += result.get("emails_skipped", 0)
                 except Exception as e:
                     logger.error(f"Failed to process emails for user {user.email}: {e}")
                     # Continue with other users
@@ -112,6 +146,7 @@ def run_email_processing(user_id: Optional[UUID] = None):
         _last_result = {
             "emails_fetched": total_emails,
             "investments_extracted": total_investments,
+            "emails_skipped": total_skipped,
             "status": "success",
         }
 

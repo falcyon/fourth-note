@@ -9,9 +9,15 @@ function getAuthHeaders(): Record<string, string> {
   return {}
 }
 
+// Leader with optional LinkedIn profile
+export interface LeaderInfo {
+  name: string
+  linkedin_url: string | null
+}
+
 // Field attribution for tracking sources
 export interface FieldAttribution {
-  value: string | null
+  value: string | LeaderInfo[] | null  // Can be string or JSON array
   source_type: string
   source_id: string | null
   source_name: string | null
@@ -40,7 +46,7 @@ export interface Investment {
   investment_name: string | null
   firm: string | null
   strategy_description: string | null
-  leaders: string | null
+  leaders_json: LeaderInfo[] | null
   management_fees: string | null
   incentive_fees: string | null
   liquidity_lock: string | null

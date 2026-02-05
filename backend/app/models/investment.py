@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -28,7 +28,7 @@ class Investment(Base):
     investment_name = Column(String(500))
     firm = Column(String(500))
     strategy_description = Column(Text)
-    leaders = Column(Text)  # Leaders/PM/CEO
+    leaders_json = Column(JSONB, default=list)  # Leaders with LinkedIn URLs: [{"name": "...", "linkedin_url": "..."}]
     management_fees = Column(Text)
     incentive_fees = Column(Text)
     liquidity_lock = Column(Text)
