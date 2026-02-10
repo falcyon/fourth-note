@@ -14,7 +14,7 @@ from app.config import get_settings
 FIELDS_FORMATS = {
     "Investment": "No specific format",
     "Firm": "No specific format",
-    "Strategy Description": "No specific format",
+    "Strategy Description": "Return as bullet points, one key point per line. Start each line with '• '. Example:\n• Focus on mid-cap growth equities\n• Long/short strategy with 60% net exposure\n• Target companies with strong cash flow",
     "Leaders/PM/CEO": """Extract ALL information about each leader/executive mentioned in the document.
 For each person, include as much detail as possible:
 - Full name
@@ -104,6 +104,12 @@ class ExtractionAgent(BaseAgent):
                     ]
                 else:
                     mapped[db_field] = None
+            elif db_field == "strategy_description":
+                # Join array of bullet points into newline-separated string
+                if isinstance(value, list):
+                    mapped[db_field] = "\n".join(str(item) for item in value)
+                else:
+                    mapped[db_field] = str(value)
             else:
                 mapped[db_field] = str(value)
         return mapped

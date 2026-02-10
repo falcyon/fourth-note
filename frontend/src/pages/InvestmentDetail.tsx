@@ -2,55 +2,61 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api, InvestmentDetail as InvestmentDetailType, Investment, InvestmentDocument, FieldWithHistory, LeaderInfo } from '../api/client'
 
-// Tooltip component for showing source/history on hover
-function SourceTooltip({
-  source,
-  children
-}: {
-  source: FieldWithHistory | null
-  children: React.ReactNode
-}) {
-  const [showTooltip, setShowTooltip] = useState(false)
+// Info icon that shows source/history on click
+function SourceInfo({ source }: { source: FieldWithHistory | null }) {
+  const [isOpen, setIsOpen] = useState(false)
 
   if (!source) {
-    return <>{children}</>
+    return null
   }
 
   return (
-    <div
-      className="relative inline-block"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-    >
-      {children}
-      {showTooltip && (
-        <div className="absolute z-50 bottom-full left-0 mb-2 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg min-w-[200px] max-w-[300px]">
-          <div className="font-medium mb-1">
-            Source: {source.source_type === 'manual' ? 'Manual Edit' : (source.source_name || 'Unknown')}
-          </div>
-          <div className="text-gray-300 mb-2">
-            Confidence: {source.confidence}
-          </div>
-          {source.all_values && source.all_values.length > 1 && (
-            <div className="border-t border-gray-700 pt-2 mt-2">
-              <div className="font-medium mb-1">History:</div>
-              {source.all_values.slice(0, 5).map((val, idx) => {
-                // Format value - handle arrays (like leaders_json) by converting to string
-                const displayValue = Array.isArray(val.value)
-                  ? val.value.map((v: LeaderInfo) => v.name).join(', ')
-                  : val.value
-                return (
-                  <div key={idx} className="text-gray-300 truncate">
-                    "{displayValue}" — {val.source_name || 'Unknown'}
-                  </div>
-                )
-              })}
+    <div className="relative inline-block ml-1.5">
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
+        className="w-4 h-4 rounded-full bg-gray-200 dark:bg-white/20 text-gray-500 dark:text-gray-400 text-[10px] font-medium hover:bg-gray-300 dark:hover:bg-white/30 transition-colors flex items-center justify-center"
+        title="View source info"
+      >
+        ?
+      </button>
+      {isOpen && (
+        <>
+          {/* Backdrop to close on click outside */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-50 bottom-full right-0 mb-2 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg min-w-[200px] max-w-[300px]">
+            <div className="font-medium mb-1">
+              Source: {source.source_type === 'manual' ? 'Manual Edit' : (source.source_name || 'Unknown')}
             </div>
-          )}
-          <div className="absolute bottom-0 left-4 transform translate-y-full">
-            <div className="border-8 border-transparent border-t-gray-900"></div>
+            <div className="text-gray-300 mb-2">
+              Confidence: {source.confidence}
+            </div>
+            {source.all_values && source.all_values.length > 1 && (
+              <div className="border-t border-gray-700 pt-2 mt-2">
+                <div className="font-medium mb-1">History:</div>
+                {source.all_values.slice(0, 5).map((val, idx) => {
+                  // Format value - handle arrays (like leaders_json) by converting to string
+                  const displayValue = Array.isArray(val.value)
+                    ? val.value.map((v: LeaderInfo) => v.name).join(', ')
+                    : val.value
+                  return (
+                    <div key={idx} className="text-gray-300 truncate">
+                      "{displayValue}" — {val.source_name || 'Unknown'}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="absolute bottom-0 right-2 transform translate-y-full">
+              <div className="border-8 border-transparent border-t-gray-900"></div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
@@ -134,6 +140,87 @@ export default function InvestmentDetail() {
     return investment.field_attributions[key]
   }
 
+  const handleExportInvestment = () => {
+    if (!investment) return
+
+    const leaders = investment.leaders_json || []
+    const docs = investment.documents || []
+
+    const lines = [
+      `# ${investment.investment_name || 'Unnamed Investment'}`,
+      '',
+      `**Firm:** ${investment.firm || 'N/A'}`,
+      '',
+      '## Key Terms',
+      '',
+      `- **Management Fees:** ${investment.management_fees || 'N/A'}`,
+      `- **Incentive Fees:** ${investment.incentive_fees || 'N/A'}`,
+      `- **Liquidity/Lock:** ${investment.liquidity_lock || 'N/A'}`,
+      `- **Target Returns:** ${investment.target_net_returns || 'N/A'}`,
+      '',
+      '## Strategy',
+      '',
+      investment.strategy_description || 'N/A',
+      '',
+    ]
+
+    if (leaders.length > 0) {
+      lines.push('## Investment Team', '')
+      leaders.forEach(l => lines.push(`- ${l.name}`))
+      lines.push('')
+    }
+
+    if (investment.notes) {
+      lines.push('## Notes', '', investment.notes, '')
+    }
+
+    if (docs.length > 0) {
+      lines.push('## Source Documents', '')
+      docs.forEach(d => lines.push(`- ${d.filename}`))
+      lines.push('')
+    }
+
+    lines.push('---', '', `*Exported on ${new Date().toLocaleDateString()}*`)
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(investment.investment_name || 'investment').replace(/\s+/g, '_')}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const renderStrategy = (text: string) => {
+    // Split on newlines, then clean up each line
+    const points = text
+      .split('\n')
+      .map(s => s.replace(/^[•\-\*]\s*/, '').trim())
+      .filter(Boolean)
+
+    if (points.length <= 1) {
+      // Single paragraph - just show as-is
+      return <p className="text-gray-700 dark:text-gray-200 leading-relaxed">{text}</p>
+    }
+
+    // Multiple points - render as bullet list
+    return (
+      <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-200">
+        {points.map((point, i) => (
+          <li key={i}>{point}</li>
+        ))}
+      </ul>
+    )
+  }
+
+  const MissingValue = () => (
+    <span className="text-gray-500/70 italic text-xs border border-dashed border-gray-500/40 px-2 py-0.5 rounded">
+      N/A
+    </span>
+  )
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -167,7 +254,7 @@ export default function InvestmentDetail() {
       </Link>
 
       {/* Main Card */}
-      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
+      <div className="bg-white dark:bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none">
         {/* Header with Edit Button */}
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1 flex flex-col">
@@ -177,15 +264,16 @@ export default function InvestmentDetail() {
                 type="text"
                 value={formData.firm || ''}
                 onChange={(e) => handleChange('firm', e.target.value)}
-                className="w-full text-sm bg-white/10 border border-white/20 rounded px-2 py-1 text-gray-400 mb-2"
+                className="w-full text-sm bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-2 py-1 text-gray-600 dark:text-gray-400 mb-2"
                 placeholder="Firm Name"
               />
             ) : (
-              <SourceTooltip source={getFieldSource('firm')}>
-                <p className="text-sm text-gray-400 cursor-help mb-2">
-                  {investment.firm || <span className="italic text-gray-500">No firm</span>}
+              <div className="flex items-end mb-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {investment.firm || <MissingValue />}
                 </p>
-              </SourceTooltip>
+                <SourceInfo source={getFieldSource('firm')} />
+              </div>
             )}
 
             {/* Investment Name - Main Heading */}
@@ -194,15 +282,16 @@ export default function InvestmentDetail() {
                 type="text"
                 value={formData.investment_name || ''}
                 onChange={(e) => handleChange('investment_name', e.target.value)}
-                className="w-full text-2xl font-bold bg-white/10 border border-white/20 rounded px-2 py-1 text-white"
+                className="w-full text-2xl font-bold bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-2 py-1 text-gray-900 dark:text-white"
                 placeholder="Investment Name"
               />
             ) : (
-              <SourceTooltip source={getFieldSource('investment_name')}>
-                <h1 className="text-2xl font-bold text-white cursor-help">
+              <div className="flex items-end">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {investment.investment_name || 'Unnamed Investment'}
                 </h1>
-              </SourceTooltip>
+                <SourceInfo source={getFieldSource('investment_name')} />
+              </div>
             )}
           </div>
 
@@ -215,7 +304,7 @@ export default function InvestmentDetail() {
                     setFormData(investment)
                     setEditing(false)
                   }}
-                  className="px-3 py-1.5 text-sm border border-white/20 rounded text-gray-300 hover:bg-white/10"
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-white/20 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
                   disabled={saving}
                 >
                   Cancel
@@ -229,12 +318,24 @@ export default function InvestmentDetail() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setEditing(true)}
-                className="px-3 py-1.5 text-sm bg-accent text-white rounded hover:bg-accent-600"
-              >
-                Edit
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleExportInvestment}
+                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-white/20 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 inline-flex items-center gap-1.5"
+                  title="Export as Markdown"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export
+                </button>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-3 py-1.5 text-sm bg-accent text-white rounded hover:bg-accent-600"
+                >
+                  Edit
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -245,9 +346,10 @@ export default function InvestmentDetail() {
           </div>
         )}
 
-        {/* Leaders - Chips with LinkedIn links */}
+        {/* Investment Team */}
         {(editing || leaders.length > 0) && (
           <div className="mb-4">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Investment Team</div>
             {editing ? (
               <textarea
                 value={formData.leaders_json
@@ -265,44 +367,22 @@ export default function InvestmentDetail() {
                   setFormData(prev => ({ ...prev, leaders_json: parsed }))
                 }}
                 rows={3}
-                className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+                className="w-full bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-3 py-2 text-gray-900 dark:text-white text-sm"
                 placeholder="One leader per line. Format: Name | LinkedIn URL (optional)"
               />
             ) : (
-              <SourceTooltip source={getFieldSource('leaders_json')}>
-                <div className="flex flex-wrap gap-2">
-                  {leaders.map((leader, idx) => (
-                    leader.linkedin_url ? (
-                      <a
-                        key={idx}
-                        href={leader.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1 bg-primary/50 text-white text-sm rounded-full hover:bg-primary/70 transition-colors inline-flex items-center gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {leader.name}
-                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                        </svg>
-                      </a>
-                    ) : (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-primary/50 text-white text-sm rounded-full"
-                      >
-                        {leader.name}
-                      </span>
-                    )
-                  ))}
-                </div>
-              </SourceTooltip>
+              <div className="flex items-end">
+                <p className="text-gray-700 dark:text-gray-200 text-sm">
+                  {leaders.map(l => l.name).join(', ')}
+                </p>
+                <SourceInfo source={getFieldSource('leaders_json')} />
+              </div>
             )}
           </div>
         )}
 
         {/* Fees, Liquidity, Returns - Single Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 py-4 border-y border-white/10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 py-4 border-y border-gray-200 dark:border-white/10">
           {[
             { key: 'management_fees', label: 'Mgmt Fees' },
             { key: 'incentive_fees', label: 'Incentive' },
@@ -310,22 +390,21 @@ export default function InvestmentDetail() {
             { key: 'target_net_returns', label: 'Target Returns' },
           ].map(({ key, label }) => (
             <div key={key}>
-              <div className="text-xs text-gray-400 mb-1">{label}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</div>
               {editing ? (
                 <input
                   type="text"
                   value={(formData[key as keyof Investment] as string) || ''}
                   onChange={(e) => handleChange(key as keyof Investment, e.target.value)}
-                  className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+                  className="w-full bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-2 py-1 text-gray-900 dark:text-white text-sm"
                 />
               ) : (
-                <SourceTooltip source={getFieldSource(key)}>
-                  <div className="text-white text-sm cursor-help">
-                    {(investment[key as keyof Investment] as string) || (
-                      <span className="text-gray-500 italic">N/A</span>
-                    )}
+                <div className="flex items-end">
+                  <div className="text-gray-900 dark:text-white text-sm">
+                    {(investment[key as keyof Investment] as string) || <MissingValue />}
                   </div>
-                </SourceTooltip>
+                  <SourceInfo source={getFieldSource(key)} />
+                </div>
               )}
             </div>
           ))}
@@ -333,42 +412,43 @@ export default function InvestmentDetail() {
 
         {/* Strategy Description - Larger */}
         <div className="mb-6">
-          <div className="text-xs text-gray-400 mb-2">Strategy</div>
+          <div className="flex items-end mb-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Strategy</div>
+            {!editing && <SourceInfo source={getFieldSource('strategy_description')} />}
+          </div>
           {editing ? (
             <textarea
               value={formData.strategy_description || ''}
               onChange={(e) => handleChange('strategy_description', e.target.value)}
               rows={5}
-              className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white"
+              className="w-full bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-3 py-2 text-gray-900 dark:text-white"
               placeholder="Strategy description..."
             />
           ) : (
-            <SourceTooltip source={getFieldSource('strategy_description')}>
-              <p className="text-gray-200 leading-relaxed cursor-help">
-                {investment.strategy_description || (
-                  <span className="text-gray-500 italic">No strategy description</span>
-                )}
-              </p>
-            </SourceTooltip>
+            <div>
+              {investment.strategy_description ? (
+                renderStrategy(investment.strategy_description)
+              ) : (
+                <MissingValue />
+              )}
+            </div>
           )}
         </div>
 
         {/* Notes */}
         <div className="mb-6">
-          <div className="text-xs text-gray-400 mb-2">Notes</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Notes</div>
           {editing ? (
             <textarea
               value={formData.notes || ''}
               onChange={(e) => handleChange('notes', e.target.value)}
               rows={3}
-              className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+              className="w-full bg-gray-100 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded px-3 py-2 text-gray-900 dark:text-white text-sm"
               placeholder="Add notes..."
             />
           ) : (
-            <p className="text-gray-300 text-sm">
-              {investment.notes || (
-                <span className="text-gray-500 italic">No notes</span>
-              )}
+            <p className="text-gray-700 dark:text-gray-300 text-sm">
+              {investment.notes || <MissingValue />}
             </p>
           )}
         </div>
@@ -376,7 +456,7 @@ export default function InvestmentDetail() {
         {/* Documents - Icons */}
         {investment.documents && investment.documents.length > 0 && (
           <div className="mb-4">
-            <div className="text-xs text-gray-400 mb-2">Documents</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Documents</div>
             <div className="flex flex-wrap gap-2">
               {investment.documents.map((doc) => (
                 <div key={doc.id} className="flex items-center space-x-1">
@@ -424,7 +504,7 @@ export default function InvestmentDetail() {
         )}
 
         {/* Metadata - Tiny Footer */}
-        <div className="pt-4 border-t border-white/10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+        <div className="pt-4 border-t border-gray-200 dark:border-white/10 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
           <span>Created: {new Date(investment.created_at).toLocaleDateString()}</span>
           <span>Updated: {new Date(investment.updated_at).toLocaleDateString()}</span>
           <span>{investment.source_count} source{investment.source_count !== 1 ? 's' : ''}</span>

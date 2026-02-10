@@ -59,7 +59,7 @@ export default function Dashboard() {
     <button
       onClick={() => handleSort(column)}
       className={`text-xs uppercase tracking-wider transition-colors ${
-        sortBy === column ? 'text-accent-300' : 'text-gray-500 hover:text-gray-300'
+        sortBy === column ? 'text-accent' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
       }`}
     >
       {label} {sortBy === column && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -70,10 +70,10 @@ export default function Dashboard() {
     <div>
       {/* Demo Hero Section - only shown when viewing as demo user */}
       {isDemo && (
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-8 mb-8 text-white border border-white/10">
+        <div className="bg-gray-100 dark:bg-white/5 backdrop-blur-sm rounded-lg p-8 mb-8 text-gray-900 dark:text-white border border-gray-200 dark:border-white/10">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl font-bold mb-4">Fourth Note</h1>
-            <p className="text-xl text-gray-400 mb-6">
+            <p className="text-xl text-gray-600 dark:text-gray-400 mb-6">
               Your centralized brain for investment tracking. Automatically fetch pitch decks from your email,
               extract key metrics with AI, and keep all your investment data organized in one place.
             </p>
@@ -89,9 +89,9 @@ export default function Dashboard() {
               </svg>
               Sign in with Google
             </Link>
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-gray-600 dark:text-gray-500">
               The list below shows a demo account. Send an investment pitch to{' '}
-              <span className="font-semibold text-accent-300">fourthnotetest@gmail.com</span>{' '}
+              <span className="font-semibold text-accent">fourthnotetest@gmail.com</span>{' '}
               to see it in action!
             </p>
           </div>
@@ -100,12 +100,12 @@ export default function Dashboard() {
 
       {/* Dashboard Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">{isDemo ? 'Demo Investments' : 'My Investments'}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isDemo ? 'Demo Investments' : 'My Investments'}</h2>
         <div className="flex items-center space-x-3">
           <TriggerButton onComplete={fetchData} onProgress={handleProgress} />
           <button
             onClick={() => api.exportCsv()}
-            className="px-4 py-2 bg-white/10 text-white rounded-md hover:bg-white/20 transition-colors border border-white/10"
+            className="px-4 py-2 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-white/20 transition-colors border border-gray-300 dark:border-white/10"
           >
             Export CSV
           </button>
@@ -122,10 +122,10 @@ export default function Dashboard() {
             setSearch(e.target.value)
             setPage(1)
           }}
-          className="flex-1 min-w-[200px] max-w-md px-4 py-2 bg-white/5 border border-white/10 rounded-md text-white placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent"
+          className="flex-1 min-w-[200px] max-w-md px-4 py-2 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-md text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-accent focus:border-transparent"
         />
         <div className="flex items-center gap-4">
-          <span className="text-xs text-gray-500">Sort:</span>
+          <span className="text-xs text-gray-600 dark:text-gray-500">Sort:</span>
           <SortButton column="updated_at" label="Updated" />
           <SortButton column="investment_name" label="Name" />
           <SortButton column="firm" label="Firm" />
@@ -152,50 +152,28 @@ export default function Dashboard() {
             <Link
               key={inv.id}
               to={`/investment/${inv.id}`}
-              className="block bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 transition-colors group"
+              className="block bg-white dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 rounded-lg p-4 transition-colors group"
             >
               <div className="flex items-start gap-6">
                 {/* Primary Info */}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-gray-500 truncate">{inv.firm || 'Unknown Firm'}</div>
-                  <h3 className="text-white font-medium group-hover:text-accent-300 transition-colors truncate">
+                  <h3 className="text-gray-900 dark:text-white font-medium group-hover:text-accent transition-colors truncate">
                     {inv.investment_name || 'Unnamed Investment'}
                   </h3>
                   {inv.strategy_description && (
-                    <p className="text-sm text-gray-400 mt-1 line-clamp-2">{inv.strategy_description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{inv.strategy_description}</p>
                   )}
                 </div>
 
                 {/* Leaders */}
                 <div className="hidden lg:block w-[200px] flex-shrink-0">
-                  <div className="text-xs text-gray-500 mb-1">Leaders</div>
-                  <div className="line-clamp-3 overflow-hidden">
+                  <div className="text-xs text-gray-500 mb-1">Team</div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     {inv.leaders_json && inv.leaders_json.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {inv.leaders_json.map((leader, idx) => (
-                          leader.linkedin_url ? (
-                            <a
-                              key={idx}
-                              href={leader.linkedin_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px] hover:bg-white/20 inline-flex items-center gap-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {leader.name}
-                              <svg className="w-2.5 h-2.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                              </svg>
-                            </a>
-                          ) : (
-                            <span key={idx} className="text-xs bg-white/10 text-gray-400 px-2 py-0.5 rounded truncate max-w-[120px]">
-                              {leader.name}
-                            </span>
-                          )
-                        ))}
-                      </div>
+                      inv.leaders_json.map(l => l.name).join(', ')
                     ) : (
-                      <span className="text-gray-300">N/A</span>
+                      <span className="text-gray-400 dark:text-gray-500 italic text-xs">Not provided</span>
                     )}
                   </div>
                 </div>
@@ -206,22 +184,22 @@ export default function Dashboard() {
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Mgmt</div>
-                      <div className="text-gray-300 truncate">{inv.management_fees || 'N/A'}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.management_fees || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Incentive</div>
-                      <div className="text-gray-300 truncate">{inv.incentive_fees || 'N/A'}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.incentive_fees || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
                     </div>
                   </div>
                   {/* Column 2: Liquidity & Target */}
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Liquidity</div>
-                      <div className="text-gray-300 truncate">{inv.liquidity_lock || 'N/A'}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.liquidity_lock || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Target</div>
-                      <div className="text-gray-300 truncate">{inv.target_net_returns || 'N/A'}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.target_net_returns || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
                     </div>
                   </div>
                 </div>
