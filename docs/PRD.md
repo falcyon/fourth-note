@@ -16,9 +16,16 @@ The extraction service sends markdown content to the Gemini API with a structure
 
 In v1.1, the leaders field separator was changed from comma to pipe (`|`) to support names containing commas, and all investment fields were migrated from VARCHAR(255) to TEXT to handle longer extracted values.
 
-### 1.2 Multi-Agent Architecture (planned for v2.0)
+### 1.2 Multi-Agent Architecture (v1.2)
 
-The current single-prompt approach will evolve into a multi-agent system with specialized agents: a Relevance Agent to filter irrelevant documents before processing, an Extraction Agent for structured data extraction, and a Validation Agent for quality checks on extracted data.
+The extraction engine now uses a multi-agent architecture with specialized agents:
+
+- **TriageAgent** - Classifies emails as investment-related (YES/NO/UNSURE) before processing
+- **ExtractionAgent** - Performs structured data extraction using Gemini 2.5 Flash
+- **LinkedInAgent** - (Disabled) Looks up LinkedIn profiles via Perplexity API
+- **EmailOrchestrator** - Coordinates the agent pipeline with graceful error handling
+
+Agents are stateless, return structured `AgentResult` objects, and can be independently tested. The old monolithic extraction approach has been replaced with this modular system.
 
 ---
 

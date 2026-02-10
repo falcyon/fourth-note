@@ -110,29 +110,29 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     )
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Settings</h1>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+        <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-md">
           {error}
         </div>
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* System Status */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">System Status</h2>
+        <div className="bg-white dark:bg-white/5 shadow-md rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">System Status</h2>
           {systemStatus && (
             <dl className="space-y-3">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Overall</dt>
+                <dt className="text-gray-500 dark:text-gray-400">Overall</dt>
                 <dd>
                   <StatusBadge
                     status={systemStatus.status === 'healthy' ? 'success' : 'warning'}
@@ -141,7 +141,7 @@ export default function Settings() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Database</dt>
+                <dt className="text-gray-500 dark:text-gray-400">Database</dt>
                 <dd>
                   <StatusBadge
                     status={systemStatus.database === 'connected' ? 'success' : 'error'}
@@ -150,7 +150,7 @@ export default function Settings() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Gmail</dt>
+                <dt className="text-gray-500 dark:text-gray-400">Gmail</dt>
                 <dd>
                   <StatusBadge
                     status={systemStatus.gmail === 'connected' ? 'success' : 'error'}
@@ -163,11 +163,11 @@ export default function Settings() {
         </div>
 
         {/* Gmail Connection Status */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Gmail Connection</h2>
+        <div className="bg-white dark:bg-white/5 shadow-md rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Gmail Connection</h2>
           <dl className="space-y-3">
             <div className="flex justify-between">
-              <dt className="text-gray-500">Status</dt>
+              <dt className="text-gray-500 dark:text-gray-400">Status</dt>
               <dd>
                 <StatusBadge
                   status={user?.has_gmail_connected ? 'success' : 'warning'}
@@ -176,14 +176,14 @@ export default function Settings() {
               </dd>
             </div>
             <div className="pt-2">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {user?.has_gmail_connected
                   ? 'Gmail is connected. Investment emails will be fetched automatically.'
                   : 'Connect your Gmail to fetch investment update emails.'}
               </p>
             </div>
             {gmailSuccess && (
-              <div className="p-3 bg-green-100 text-green-700 rounded text-sm">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-sm">
                 {gmailSuccess}
               </div>
             )}
@@ -213,12 +213,12 @@ export default function Settings() {
         </div>
 
         {/* Scheduler */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Scheduler</h2>
+        <div className="bg-white dark:bg-white/5 shadow-md rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Scheduler</h2>
           {schedulerStatus && (
             <dl className="space-y-3">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Status</dt>
+                <dt className="text-gray-500 dark:text-gray-400">Status</dt>
                 <dd>
                   <StatusBadge
                     status={schedulerStatus.running ? 'success' : 'error'}
@@ -227,20 +227,20 @@ export default function Settings() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Interval</dt>
-                <dd className="text-gray-900">Every {schedulerStatus.interval_hours} hours</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Interval</dt>
+                <dd className="text-gray-900 dark:text-gray-100">Every {schedulerStatus.interval_hours} hours</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Next Run</dt>
-                <dd className="text-gray-900">
+                <dt className="text-gray-500 dark:text-gray-400">Next Run</dt>
+                <dd className="text-gray-900 dark:text-gray-100">
                   {schedulerStatus.next_run
                     ? new Date(schedulerStatus.next_run).toLocaleString()
                     : '-'}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Last Run</dt>
-                <dd className="text-gray-900">
+                <dt className="text-gray-500 dark:text-gray-400">Last Run</dt>
+                <dd className="text-gray-900 dark:text-gray-100">
                   {schedulerStatus.last_run
                     ? new Date(schedulerStatus.last_run).toLocaleString()
                     : 'Never'}
@@ -251,29 +251,29 @@ export default function Settings() {
         </div>
 
         {/* Database Stats */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Database Statistics</h2>
+        <div className="bg-white dark:bg-white/5 shadow-md rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Database Statistics</h2>
           {stats && (
             <dl className="space-y-3">
               <div className="flex justify-between">
-                <dt className="text-gray-500">Total Emails</dt>
-                <dd className="text-gray-900 font-medium">{stats.total_emails}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Total Emails</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{stats.total_emails}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Total Documents</dt>
-                <dd className="text-gray-900 font-medium">{stats.total_documents}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Total Documents</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{stats.total_documents}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Total Investments</dt>
-                <dd className="text-gray-900 font-medium">{stats.total_investments}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Total Investments</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{stats.total_investments}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Pending Documents</dt>
-                <dd className="text-gray-900 font-medium">{stats.pending_documents}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Pending Documents</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{stats.pending_documents}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">Failed Documents</dt>
-                <dd className="text-gray-900 font-medium">{stats.failed_documents}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">Failed Documents</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{stats.failed_documents}</dd>
               </div>
             </dl>
           )}
@@ -281,9 +281,9 @@ export default function Settings() {
       </div>
 
       {/* Export Section */}
-      <div className="mt-6 bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Data Export</h2>
-        <p className="text-gray-600 mb-4">
+      <div className="mt-6 bg-white dark:bg-white/5 shadow-md rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Data Export</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
           Download all extracted investment data as a CSV file for use in spreadsheets.
         </p>
         <button

@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Multi-agent architecture for email processing (TriageAgent, ExtractionAgent, LinkedInAgent)
+- EmailOrchestrator to coordinate agent pipeline with graceful error handling
+- Dark mode support for Settings page (consistency with other pages)
+- Centralized localStorage constants in `frontend/src/constants.ts`
+- ThemeContext for dark/light theme management
+
+### Changed
+- Email processing now uses agent-based architecture instead of monolithic service
+- Emails are now processed one-by-one for cleaner fallback on errors
+
+### Removed
+- Deprecated `extraction_service.py` (replaced by ExtractionAgent)
+
 ## [1.1.2] - 2026-01-26
 
 ### Added
@@ -28,7 +42,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Leaders column width increased from 140px to 200px
 - Leaders content limited to 3 lines with truncation
 
-## [1.1.0] - 2026-01-XX
+## [1.1.0] - 2026-01-22
 
 ### Added
 - Per-user Gmail OAuth connection
@@ -42,7 +56,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Investment fields from VARCHAR(255) to TEXT
 - Investment-centric database schema redesign
 
-## [1.0.0] - 2026-01-XX
+## [1.0.0] - 2026-01-15
 
 ### Added
 - Initial release

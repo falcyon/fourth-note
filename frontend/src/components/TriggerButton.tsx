@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-
-const TOKEN_KEY = 'fourth_note_token'
+import { TOKEN_KEY, USER_KEY } from '../constants'
 
 export interface ProgressEvent {
   step: string
@@ -60,7 +59,7 @@ export default function TriggerButton({ onComplete, onProgress }: TriggerButtonP
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem(TOKEN_KEY)
-          localStorage.removeItem('fourth_note_user')
+          localStorage.removeItem(USER_KEY)
           window.location.href = '/login'
           return
         }

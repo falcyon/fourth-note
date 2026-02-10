@@ -23,6 +23,7 @@ Fourth Note is an investment tracking application that:
 fourth-note/
 ├── backend/                    # Python FastAPI backend
 │   ├── app/
+│   │   ├── agents/            # AI agent framework (v1.2)
 │   │   ├── api/               # REST API endpoints
 │   │   ├── models/            # SQLAlchemy models
 │   │   ├── services/          # Business logic
@@ -35,16 +36,15 @@ fourth-note/
 │   ├── src/
 │   │   ├── api/               # API client
 │   │   ├── components/        # UI components
-│   │   ├── context/           # React context (auth)
+│   │   ├── context/           # React context (auth, theme)
 │   │   └── pages/             # Page components
 │   ├── Dockerfile
 │   └── package.json
 │
 ├── scripts/
-│   └── init-oauth.py          # Gmail OAuth setup
-│
-├── config/
-│   └── nginx/                 # Nginx configs for deployment
+│   ├── init-oauth.py          # Gmail OAuth setup
+│   ├── init-oauth.sh          # Gmail OAuth setup (shell)
+│   └── deploy.sh              # Ubuntu deployment script
 │
 ├── .env.example               # Environment template
 ├── docker-compose.yml         # Production (Linux server)
@@ -94,15 +94,24 @@ Access at: http://localhost:4444
 | `JWT_SECRET_KEY` | JWT signing key |
 | `GMAIL_QUERY_SINCE` | Unix timestamp for email fetch cutoff |
 | `SCHEDULER_INTERVAL_HOURS` | Hours between auto-fetch (0 to disable) |
+| `OPENAI_API_KEY` | OpenAI API key (dev only, for testing) |
+| `PERPLEXITY_API_KEY` | Perplexity API key (for LinkedIn lookup agent) |
 
 ## API Endpoints
 
 - `POST /api/v1/auth/login` - Google Sign-In
+- `POST /api/v1/auth/demo` - Demo user login
 - `GET /api/v1/auth/me` - Current user info
 - `GET /api/v1/investments` - List investments
 - `GET /api/v1/investments/{id}` - Investment details
+- `PUT /api/v1/investments/{id}` - Update investment
+- `GET /api/v1/investments/export/csv` - Export all investments as CSV
 - `GET /api/v1/trigger/fetch-emails/stream` - Trigger email fetch (SSE)
+- `POST /api/v1/trigger/fetch-emails` - Trigger email fetch (non-streaming)
 - `GET /api/v1/status` - Health check
+- `GET /api/v1/scheduler/status` - Scheduler info
+- `GET /api/v1/oauth/status` - Gmail OAuth status
+- `GET /api/v1/stats` - Database statistics
 
 ## Development & Testing
 
@@ -135,10 +144,26 @@ docker compose exec backend alembic revision --autogenerate -m "description"
 ## Key Files
 
 - `backend/app/main.py` - FastAPI app entry point
-- `backend/app/services/extraction_service.py` - Gemini AI extraction
+- `backend/app/agents/orchestrator.py` - Email processing pipeline
+- `backend/app/agents/extraction_agent.py` - AI data extraction
+- `backend/app/agents/triage_agent.py` - Email relevance classification
 - `backend/app/services/gmail_service.py` - Gmail API integration
 - `frontend/src/App.tsx` - React app with routing
 - `frontend/src/context/AuthContext.tsx` - Authentication state
+- `frontend/src/context/ThemeContext.tsx` - Dark/light theme state
+- `frontend/src/constants.ts` - Centralized configuration constants
+
+## Agentic Framework (v1.2)
+
+The backend uses an agent-based architecture for email processing:
+
+- **TriageAgent** - Classifies emails as investment-related (YES/NO/UNSURE)
+- **ExtractionAgent** - Extracts structured data using Gemini 2.5 Flash
+- **LinkedInAgent** - (Disabled) Looks up LinkedIn profiles via Perplexity API
+- **EmailOrchestrator** - Coordinates the pipeline, handles errors gracefully
+
+Agents are stateless and return structured `AgentResult` objects. The old monolithic
+`extraction_service.py` has been removed in favor of this modular approach.
 
 ## Feature Tracking
 

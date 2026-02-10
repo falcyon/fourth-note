@@ -1,5 +1,4 @@
-const API_BASE = '/api/v1'
-const TOKEN_KEY = 'fourth_note_token'
+import { API_BASE, TOKEN_KEY, USER_KEY } from '../constants'
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem(TOKEN_KEY)
@@ -139,7 +138,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     // Handle 401 by clearing auth and redirecting to login
     if (response.status === 401) {
       localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem('fourth_note_user')
+      localStorage.removeItem(USER_KEY)
       window.location.href = '/login'
       throw new Error('Session expired. Please log in again.')
     }
@@ -191,7 +190,7 @@ export const api = {
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem('fourth_note_user')
+        localStorage.removeItem(USER_KEY)
         window.location.href = '/login'
         throw new Error('Session expired. Please log in again.')
       }
@@ -248,7 +247,7 @@ export const api = {
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem('fourth_note_user')
+        localStorage.removeItem(USER_KEY)
         window.location.href = '/login'
         throw new Error('Session expired. Please log in again.')
       }
@@ -274,7 +273,7 @@ export const api = {
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem('fourth_note_user')
+        localStorage.removeItem(USER_KEY)
         window.location.href = '/login'
         throw new Error('Session expired. Please log in again.')
       }

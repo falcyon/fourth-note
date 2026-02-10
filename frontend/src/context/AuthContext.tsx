@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import { API_BASE, TOKEN_KEY, USER_KEY, DEMO_EMAIL } from '../constants'
 
 interface User {
   id: string
@@ -20,11 +21,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-const API_BASE = '/api/v1'
-const TOKEN_KEY = 'fourth_note_token'
-const USER_KEY = 'fourth_note_user'
-const DEMO_EMAIL = 'fourthnotetest@gmail.com'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
