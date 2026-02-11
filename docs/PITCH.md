@@ -124,32 +124,4 @@ Every extracted value links back to its source document. Click any field to see 
 | Feature | Description |
 |---------|-------------|
 | **Fund Similarity** | Automatically identify funds with similar strategies, sectors, or structures - without digging through your notes |
-| **Semantic Search** | Natural language queries across all your data ("Which funds increased fees this year?", "Show me all healthcare-focused strategies") |
-
----
-
-## Who It's For
-
-### Family Offices
-Track LP investments across dozens of funds. Stop manually updating your master spreadsheet.
-
-### Fund Administrators
-Process investor communications at scale. Export structured data directly into your existing systems.
-
-### Wealth Managers
-Stay informed on client holdings without manual document review. Spend time advising, not transcribing.
-
-### Investment Analysts
-Focus on analysis and due diligence, not data entry. Let AI handle the extraction.
-
----
-
-## Contact
-
-**Email:** [your-email]
-
-**Website:** [your-website]
-
----
-
-*Fourth Note - Your investment data, always current.*
+| **Natural Language Search** | Natural language queries across all your data ("Which funds increased fees this year?", "Show me all healthcare-focused strategies") |
