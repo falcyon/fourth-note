@@ -16,7 +16,7 @@ Every quarter, you receive dozens of emails from fund managers. Each contains cr
 You manually open each attachment, scan through pages of content, and copy numbers into your tracking spreadsheet. Repeat for every email, every fund, every quarter.
 
 **2. Your Tracker Is Always Out of Date**
-You have a single source of truth - maybe a master spreadsheet, maybe a CRM, maybe a shared drive. But keeping it current is a full-time job. By the time you finish updating Q3 data, Q4 updates are already piling up in your inbox.
+You may already have a single source of truth - maybe a master spreadsheet, maybe a CRM, maybe a shared drive. But keeping it current & updated is a full-time job. By the time you finish updating Q3 data, Q4 updates are already piling up in your inbox.
 
 **3. Information Scattered Across Formats**
 Investment insights live everywhere: email attachments, call transcripts, meeting notes, physical notebooks, Excel files, markdown docs. When you need to compare funds or recall a key detail, you're digging through multiple sources trying to piece together the full picture.
@@ -37,16 +37,6 @@ We pull from your emails, investor calls, meeting transcriptions, and other comm
 
 The result: a unified, always-current view of all your investments - maintained for you, not by you.
 
-### How It Works
-
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Sources   │    │   Content   │    │    Text     │    │     AI      │    │ Structured  │
-│  Connected  │ →  │  Extracted  │ →  │  Converted  │ →  │  Analyzes   │ →  │    Data     │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-   Email, Calls,      PDF, PPT,          OCR for          Multi-Agent        Searchable
-   Transcripts        Word, etc.         scans            Pipeline           Dashboard
-```
 
 ### The Process
 
@@ -68,7 +58,8 @@ We don't lock you in. All extracted data is downloadable:
 - **CSV export** for spreadsheet analysis
 - **Markdown files** of every processed document
 
-If you ever want to leave, your data comes with you.
+You can either integrate our process to your existing workflow, or choose to use our UI with all of its capabilities.
+And if you ever want to leave, your data comes with you.
 
 ---
 
