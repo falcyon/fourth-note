@@ -46,9 +46,9 @@ The result: a unified, always-current view of all your investments - maintained 
 
 3. **Smart Filtering** - Our AI identifies investment-related content and skips irrelevant material (signatures, disclaimers, marketing).
 
-4. **Document Conversion** - Attachments are converted to searchable text. Scanned documents go through OCR. Nothing is lost.
+4. **Document Conversion** - Attachments are converted to searchable text. Text is even extracted from scanned documents & images. Nothing is lost.
 
-5. **AI Extraction** - Our multi-agent system extracts structured data from unstructured content. Every field links back to its source for verification.
+5. **AI Extraction** - Our multi-agent system extracts structured data from unstructured content. Every field is also linked back to its source for verification.
 
 6. **Unified Dashboard** - All your investments in one place. Search, sort, filter, export.
 
