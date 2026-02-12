@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api, InvestmentDetail as InvestmentDetailType, Investment, InvestmentDocument, FieldWithHistory, LeaderInfo } from '../api/client'
+import MissingValue, { displayValue } from '../components/MissingValue'
 
 // Info icon that shows source/history on click
 function SourceInfo({ source }: { source: FieldWithHistory | null }) {
@@ -41,12 +42,12 @@ function SourceInfo({ source }: { source: FieldWithHistory | null }) {
                 <div className="font-medium mb-1">History:</div>
                 {source.all_values.slice(0, 5).map((val, idx) => {
                   // Format value - handle arrays (like leaders_json) by converting to string
-                  const displayValue = Array.isArray(val.value)
+                  const formattedValue = Array.isArray(val.value)
                     ? val.value.map((v: LeaderInfo) => v.name).join(', ')
                     : val.value
                   return (
                     <div key={idx} className="text-gray-300 truncate">
-                      "{displayValue}" — {val.source_name || 'Unknown'}
+                      "{formattedValue}" — {val.source_name || 'Unknown'}
                     </div>
                   )
                 })}
@@ -149,18 +150,18 @@ export default function InvestmentDetail() {
     const lines = [
       `# ${investment.investment_name || 'Unnamed Investment'}`,
       '',
-      `**Firm:** ${investment.firm || 'N/A'}`,
+      `**Firm:** ${displayValue(investment.firm)}`,
       '',
       '## Key Terms',
       '',
-      `- **Management Fees:** ${investment.management_fees || 'N/A'}`,
-      `- **Incentive Fees:** ${investment.incentive_fees || 'N/A'}`,
-      `- **Liquidity/Lock:** ${investment.liquidity_lock || 'N/A'}`,
-      `- **Target Returns:** ${investment.target_net_returns || 'N/A'}`,
+      `- **Management Fees:** ${displayValue(investment.management_fees)}`,
+      `- **Incentive Fees:** ${displayValue(investment.incentive_fees)}`,
+      `- **Liquidity/Lock:** ${displayValue(investment.liquidity_lock)}`,
+      `- **Target Returns:** ${displayValue(investment.target_net_returns)}`,
       '',
       '## Strategy',
       '',
-      investment.strategy_description || 'N/A',
+      displayValue(investment.strategy_description),
       '',
     ]
 
@@ -214,12 +215,6 @@ export default function InvestmentDetail() {
       </ul>
     )
   }
-
-  const MissingValue = () => (
-    <span className="text-gray-500/70 italic text-xs border border-dashed border-gray-500/40 px-2 py-0.5 rounded">
-      N/A
-    </span>
-  )
 
   if (loading) {
     return (

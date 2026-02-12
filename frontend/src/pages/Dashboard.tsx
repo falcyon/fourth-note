@@ -4,6 +4,7 @@ import { api, InvestmentListResponse } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import TriggerButton, { ProgressEvent } from '../components/TriggerButton'
 import Pagination from '../components/Pagination'
+import MissingValue from '../components/MissingValue'
 
 export default function Dashboard() {
   const { isDemo } = useAuth()
@@ -173,7 +174,7 @@ export default function Dashboard() {
                     {inv.leaders_json && inv.leaders_json.length > 0 ? (
                       inv.leaders_json.map(l => l.name).join(', ')
                     ) : (
-                      <span className="text-gray-400 dark:text-gray-500 italic text-xs">Not provided</span>
+                      <MissingValue />
                     )}
                   </div>
                 </div>
@@ -184,22 +185,22 @@ export default function Dashboard() {
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Mgmt</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.management_fees || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.management_fees || <MissingValue />}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Incentive</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.incentive_fees || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.incentive_fees || <MissingValue />}</div>
                     </div>
                   </div>
                   {/* Column 2: Liquidity & Target */}
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Liquidity</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.liquidity_lock || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.liquidity_lock || <MissingValue />}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Target</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.target_net_returns || <span className="text-gray-400 dark:text-gray-500 italic text-xs">—</span>}</div>
+                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.target_net_returns || <MissingValue />}</div>
                     </div>
                   </div>
                 </div>

@@ -10,3 +10,6 @@ export const API_BASE = '/api/v1'
 
 // Demo user email for checking demo mode
 export const DEMO_EMAIL = 'fourthnotetest@gmail.com'
+
+// Display fallback for missing/empty values
+export const NA_TEXT = 'N/A'
