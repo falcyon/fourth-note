@@ -170,9 +170,9 @@ export default function Dashboard() {
                 {/* Leaders */}
                 <div className="hidden lg:block w-[200px] flex-shrink-0">
                   <div className="text-xs text-gray-500 mb-1">Team</div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-4">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
                     {inv.leaders_json && inv.leaders_json.length > 0 ? (
-                      inv.leaders_json.map(l => l.name).join(', ')
+                      <span className="line-clamp-4">{inv.leaders_json.map(l => l.name).join(', ')}</span>
                     ) : (
                       <MissingValue />
                     )}
@@ -185,22 +185,22 @@ export default function Dashboard() {
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Mgmt</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.management_fees || <MissingValue />}</div>
+                      <div className="text-gray-700 dark:text-gray-300">{inv.management_fees ? <span className="block truncate">{inv.management_fees}</span> : <MissingValue />}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Incentive</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.incentive_fees || <MissingValue />}</div>
+                      <div className="text-gray-700 dark:text-gray-300">{inv.incentive_fees ? <span className="block truncate">{inv.incentive_fees}</span> : <MissingValue />}</div>
                     </div>
                   </div>
                   {/* Column 2: Liquidity & Target */}
                   <div className="w-[140px]">
                     <div>
                       <div className="text-xs text-gray-500">Liquidity</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.liquidity_lock || <MissingValue />}</div>
+                      <div className="text-gray-700 dark:text-gray-300">{inv.liquidity_lock ? <span className="block truncate">{inv.liquidity_lock}</span> : <MissingValue />}</div>
                     </div>
                     <div className="mt-1">
                       <div className="text-xs text-gray-500">Target</div>
-                      <div className="text-gray-700 dark:text-gray-300 truncate">{inv.target_net_returns || <MissingValue />}</div>
+                      <div className="text-gray-700 dark:text-gray-300">{inv.target_net_returns ? <span className="block truncate">{inv.target_net_returns}</span> : <MissingValue />}</div>
                     </div>
                   </div>
                 </div>
