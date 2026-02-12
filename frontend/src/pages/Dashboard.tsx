@@ -158,8 +158,8 @@ export default function Dashboard() {
               <div className="flex items-start gap-6">
                 {/* Primary Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-gray-500 dark:text-gray-400 font-medium truncate">{inv.firm || 'Unknown Firm'}</div>
-                  <h3 className="text-gray-900 dark:text-white font-medium group-hover:text-accent transition-colors truncate">
+                  <div className="text-gray-900 dark:text-white font-medium truncate">{inv.firm || 'Unknown Firm'}</div>
+                  <h3 className="text-sm text-gray-500 dark:text-gray-400 font-medium group-hover:text-accent transition-colors truncate">
                     {inv.investment_name || 'Unnamed Investment'}
                   </h3>
                   {inv.strategy_description && (
@@ -170,7 +170,7 @@ export default function Dashboard() {
                 {/* Leaders */}
                 <div className="hidden lg:block w-[200px] flex-shrink-0">
                   <div className="text-xs text-gray-500 mb-1">Team</div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-4">
                     {inv.leaders_json && inv.leaders_json.length > 0 ? (
                       inv.leaders_json.map(l => l.name).join(', ')
                     ) : (
