@@ -208,7 +208,7 @@ export default function InvestmentDetail() {
 
     // Multiple points - render as bullet list
     return (
-      <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-200">
+      <ul className="list-disc list-outside pl-5 space-y-1 text-gray-700 dark:text-gray-200">
         {points.map((point, i) => (
           <li key={i}>{point}</li>
         ))}
