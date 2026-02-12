@@ -158,7 +158,7 @@ export default function Dashboard() {
               <div className="flex items-start gap-6">
                 {/* Primary Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-gray-500 truncate">{inv.firm || 'Unknown Firm'}</div>
+                  <div className="text-gray-500 dark:text-gray-400 font-medium truncate">{inv.firm || 'Unknown Firm'}</div>
                   <h3 className="text-gray-900 dark:text-white font-medium group-hover:text-accent transition-colors truncate">
                     {inv.investment_name || 'Unnamed Investment'}
                   </h3>
